@@ -1,0 +1,147 @@
+<!--
+  TEMPLATE: dashboard.html
+  Corresponde a DashboardComponent (selector: app-dashboard)
+
+  AQUÍ SE UNEN TODOS LOS CONCEPTOS:
+  ────────────────────────────────────────────────────────────────────────
+  <app-filter-bar>     → componente hijo con binding bidireccional
+  <app-match-card>     → componente hijo dentro de un @for
+  @for                 → itera sobre filteredMatches (getter del .ts)
+  @if/@else            → muestra estado vacío si no hay resultados
+  [prop]="valor"       → property binding: padre → hijo (@Input)
+  (evento)="handler()" → event binding: hijo → padre (@Output)
+  ────────────────────────────────────────────────────────────────────────
+
+  FLUJO DE DATOS COMPLETO:
+                          DASHBOARD (dueño del estado)
+                         /                            \
+              [searchQuery]                    (searchChanged)
+              [competition]                    (competitionChanged)
+              [status]                         (statusChanged)
+                        |
+                  app-filter-bar
+                  (el usuario filtra)
+
+              @for (match of filteredMatches)
+                        |
+              [match]="match"              ← datos del partido
+              [isAnalysisOpen]="..."       ← ¿panel abierto?
+              (toggleAnalysis)="..."       ← evento del click
+                        |
+                  app-match-card           ← renderiza la tarjeta
+                        |
+              [match]="match"
+                        |
+                  app-ai-analysis          ← panel de IA (interno)
+-->
+
+<!-- Contenedor principal de la vista del Dashboard -->
+<section>
+
+  <!-- ─── Barra de Filtros ──────────────────────────────────────────────── -->
+  <!--
+    BINDINGS EXPLICADOS LÍNEA POR LÍNEA:
+
+    [searchQuery]="searchQuery"
+      → Pasa el valor actual del filtro al hijo (property binding).
+        Si el usuario escribe "Liverpool", el input del FilterBar muestra "Liverpool".
+
+    (searchChanged)="onSearchChange($event)"
+      → Escucha el @Output del FilterBar. Cuando el usuario escribe,
+        FilterBar emite el texto nuevo, y $event contiene ese texto.
+        onSearchChange() lo guarda en this.searchQuery → @for se recalcula.
+  -->
+  <app-filter-bar
+    [searchQuery]="searchQuery"
+    [competition]="competition"
+    [status]="status"
+    (searchChanged)="onSearchChange($event)"
+    (competitionChanged)="onCompetitionChange($event)"
+    (statusChanged)="onStatusChange($event)"
+  />
+
+  <!-- ─── Área de Partidos ──────────────────────────────────────────────── -->
+  <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+
+    <!--
+      @if/@else sobre filteredMatches.length
+      Si el getter devuelve un array vacío (ningún partido coincide),
+      mostramos el estado "vacío". De lo contrario, mostramos la grilla.
+    -->
+    @if (filteredMatches.length === 0) {
+
+      <!-- ─── Estado Vacío ────────────────────────────────────────────── -->
+      <div class="flex flex-col items-center justify-center py-16 text-center">
+        <div class="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-secondary/50">
+          <span class="text-2xl">⚽</span>
+        </div>
+        <h3 class="text-lg font-medium text-foreground">
+          No se encontraron partidos
+        </h3>
+        <p class="mt-1 text-sm text-muted-foreground">
+          Intenta ajustar los filtros de búsqueda
+        </p>
+      </div>
+
+    } @else {
+
+      <!-- ─── Grilla de Tarjetas ──────────────────────────────────────── -->
+      <!--
+        Encabezado con contador dinámico de resultados.
+        filteredMatches.length es reactivo: se actualiza automáticamente
+        cuando el usuario cambia los filtros.
+      -->
+      <div class="mb-4 flex items-center justify-between">
+        <h2 class="text-sm font-medium text-muted-foreground">
+          {{ filteredMatches.length }}
+          {{ filteredMatches.length === 1 ? 'partido encontrado' : 'partidos encontrados' }}
+        </h2>
+      </div>
+
+      <!--
+        @for — BUCLE PRINCIPAL — renderiza una tarjeta por cada partido
+
+        SINTAXIS:
+          @for (match of filteredMatches; track match.id) { ... }
+            │              │                     │
+            │              │                     └─ track: clave única para cada elemento
+            │              │                          Angular lo necesita para actualizar
+            │              │                          el DOM eficientemente (como key en React)
+            │              └─ el array a iterar (viene del getter del .ts)
+            └─ nombre local de la variable de iteración
+
+        Dentro del bloque, "match" es el partido actual de la iteración.
+      -->
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        @for (match of filteredMatches; track match.id) {
+
+          <!--
+            app-match-card: tarjeta de cada partido
+
+            [match]="match"
+              → Le pasamos el objeto Match al hijo via @Input.
+                Cada tarjeta recibe SU partido específico.
+
+            [isAnalysisOpen]="openAnalysisId === match.id"
+              → La expresión "openAnalysisId === match.id" se evalúa
+                para CADA tarjeta en el loop.
+                Solo la tarjeta cuyo ID coincide con openAnalysisId
+                recibirá isAnalysisOpen = true.
+
+            (toggleAnalysis)="onToggleAnalysis(match.id)"
+              → Cuando el usuario hace click en "Analizar con IA",
+                la tarjeta emite el evento toggleAnalysis (vacío).
+                Pero necesitamos saber QUÉ tarjeta, así que pasamos
+                match.id como argumento al manejador del Dashboard.
+          -->
+          <app-match-card
+            [match]="match"
+            [isAnalysisOpen]="openAnalysisId === match.id"
+            (toggleAnalysis)="onToggleAnalysis(match.id)"
+          />
+        }
+      </div>
+    }
+
+  </div>
+</section>

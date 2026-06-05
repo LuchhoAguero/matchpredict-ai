@@ -1,0 +1,229 @@
+<!--
+  TEMPLATE: ai-analysis.html
+  Corresponde a AiAnalysisComponent (selector: app-ai-analysis)
+
+  DISEÑO ORIGINAL: AIAnalysisPanel de shadcn/ui + lucide-react
+  ESTE ARCHIVO: traducción fiel al HTML puro + Tailwind + Angular
+
+  TRADUCCIONES REALIZADAS:
+  ┌──────────────────────────────────────┬────────────────────────────────────────────┐
+  │ React/shadcn original                │ Angular equivalente                        │
+  ├──────────────────────────────────────┼────────────────────────────────────────────┤
+  │ <Badge variant="outline">            │ <span class="border border-...">           │
+  │ <Badge variant="secondary">          │ <span class="bg-... text-...">             │
+  │ <Separator>                          │ <div class="h-px bg-border/50">            │
+  │ <TrendingUp className="h-3.5 w-3.5"> │ <svg> inline con path de lucide            │
+  │ <BarChart3> <Target> <Sparkles>      │ <svg> inline con paths correspondientes    │
+  │ {insights.map((item, i) => ...)}     │ @for (insight of analysis.insights; ...)   │
+  │ {[1,2,3,4,5].map(level => ...)}      │ @for (level of confidenceLevels; ...)      │
+  │ {insight.icon === 'trending' && ...} │ @if (insight.icon === 'trending') { }      │
+  │ level <= analysis.confidence ? 'bg-primary' : 'bg-secondary/50' │ [class.bg-primary]="level <= analysis.confidence" │
+  └──────────────────────────────────────┴────────────────────────────────────────────┘
+
+  NOTA: El @if que verifica analysis antes de renderizar todo el contenido
+  es necesario porque analysis se calcula en ngOnInit(), no en el constructor.
+  Sin esto, Angular intentaría acceder a analysis.summary antes de que exista.
+-->
+
+<!-- Guarda de seguridad: solo renderiza cuando analysis está listo -->
+@if (analysis) {
+
+<div class="relative border-t border-primary/20 bg-gradient-to-b from-primary/5 via-background to-background">
+
+  <!-- ─── Efecto de borde brillante (glow) ───────────────────────────────── -->
+  <!--
+    Esta línea de gradiente simula el efecto de luz en el borde superior.
+    "absolute inset-x-0 top-0" la ancla al borde superior del contenedor.
+    from-transparent via-primary/50 to-transparent crea el efecto de desvanecimiento.
+  -->
+  <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent"></div>
+
+  <div class="space-y-4 p-4">
+
+    <!-- ─── Encabezado: Título + Badge "Powered by AI" ────────────────────── -->
+    <div class="flex items-center gap-2">
+
+      <!-- Ícono Sparkles en un cuadrado con fondo -->
+      <div class="flex h-6 w-6 items-center justify-center rounded-md bg-primary/20">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-primary"
+          viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+        </svg>
+      </div>
+
+      <h4 class="text-sm font-semibold text-foreground">Análisis de MatchPredict</h4>
+
+      <!-- "ml-auto" empuja el badge hacia la derecha (flexbox margin auto) -->
+      <span class="ml-auto inline-flex items-center rounded-full border border-primary/30 px-2 py-0.5 text-[10px] text-primary">
+        Powered by AI
+      </span>
+    </div>
+
+    <!-- ─── Resumen del análisis ─────────────────────────────────────────── -->
+    <!-- {{ analysis.summary }} muestra el texto calculado en ngOnInit() -->
+    <p class="text-sm leading-relaxed text-muted-foreground">
+      {{ analysis.summary }}
+    </p>
+
+    <!-- ─── Separador horizontal ─────────────────────────────────────────── -->
+    <!-- <Separator> de shadcn es simplemente un div de 1px de alto -->
+    <div class="h-px bg-border/50"></div>
+
+    <!-- ─── Grilla de 3 probabilidades: Local / Empate / Visitante ─────────── -->
+    <div class="grid grid-cols-3 gap-3">
+
+      <!-- Probabilidad Local -->
+      <div class="flex flex-col items-center gap-1 rounded-lg bg-secondary/30 p-3">
+        <span class="text-[10px] uppercase tracking-wider text-muted-foreground">
+          {{ match.homeTeamShort }}
+        </span>
+        <span class="text-lg font-bold text-foreground">{{ analysis.homeWinProb }}%</span>
+      </div>
+
+      <!-- Empate -->
+      <div class="flex flex-col items-center gap-1 rounded-lg bg-secondary/30 p-3">
+        <span class="text-[10px] uppercase tracking-wider text-muted-foreground">Empate</span>
+        <span class="text-lg font-bold text-foreground">{{ analysis.drawProb }}%</span>
+      </div>
+
+      <!-- Probabilidad Visitante -->
+      <div class="flex flex-col items-center gap-1 rounded-lg bg-secondary/30 p-3">
+        <span class="text-[10px] uppercase tracking-wider text-muted-foreground">
+          {{ match.awayTeamShort }}
+        </span>
+        <span class="text-lg font-bold text-foreground">{{ analysis.awayWinProb }}%</span>
+      </div>
+    </div>
+
+    <!-- ─── Insights Clave ─────────────────────────────────────────────────── -->
+    <div class="space-y-2">
+      <h5 class="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        Insights Clave
+      </h5>
+
+      <div class="space-y-2">
+        <!--
+          @for sobre el array analysis.insights.
+          Cada "insight" tiene: { icon: 'trending'|'chart'|'target', text: string }
+
+          "track $index" usa el índice como clave única (válido cuando el array
+          no se reordena, que es nuestro caso con datos estáticos).
+        -->
+        @for (insight of analysis.insights; track $index) {
+          <div class="flex items-start gap-2 rounded-md bg-secondary/20 p-2">
+
+            <!--
+              @if anidados: mostramos el ícono SVG correcto según insight.icon.
+              Equivalente al código React original:
+                {insight.icon === "trending" && <TrendingUp ... />}
+                {insight.icon === "chart" && <BarChart3 ... />}
+                {insight.icon === "target" && <Target ... />}
+            -->
+
+            @if (insight.icon === 'trending') {
+              <!-- Ícono TrendingUp (flecha hacia arriba en diagonal) -->
+              <svg xmlns="http://www.w3.org/2000/svg" class="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m22 7-8.5 8.5-5-5L2 17"/>
+                <polyline points="16 7 22 7 22 13"/>
+              </svg>
+            }
+
+            @if (insight.icon === 'chart') {
+              <!-- Ícono BarChart3 (barras de gráfico) -->
+              <svg xmlns="http://www.w3.org/2000/svg" class="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 3v18h18"/>
+                <path d="M18 17V9"/>
+                <path d="M13 17V5"/>
+                <path d="M8 17v-3"/>
+              </svg>
+            }
+
+            @if (insight.icon === 'target') {
+              <!-- Ícono Target (diana / objetivo) -->
+              <svg xmlns="http://www.w3.org/2000/svg" class="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <circle cx="12" cy="12" r="6"/>
+                <circle cx="12" cy="12" r="2"/>
+              </svg>
+            }
+
+            <span class="text-xs text-muted-foreground">{{ insight.text }}</span>
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- ─── Indicador de Confianza con barras ──────────────────────────────── -->
+    <div class="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/10 p-3">
+
+      <div class="flex items-center gap-2">
+        <!-- Ícono Target pequeño -->
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-primary"
+          viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <circle cx="12" cy="12" r="6"/>
+          <circle cx="12" cy="12" r="2"/>
+        </svg>
+        <span class="text-xs font-medium text-foreground">Nivel de Confianza</span>
+      </div>
+
+      <div class="flex items-center gap-2">
+
+        <!-- Barras de nivel (5 barras, se llenan según analysis.confidence) -->
+        <!--
+          @for sobre confidenceLevels = [1, 2, 3, 4, 5] (definido en el .ts)
+
+          [class.bg-primary]="level <= analysis.confidence"
+            → Agrega bg-primary si level está DENTRO del nivel de confianza
+
+          [class.bg-secondary]="level > analysis.confidence"
+            → Agrega bg-secondary si level está FUERA del nivel de confianza
+
+          Es la traducción directa del ternario:
+            level <= analysis.confidence ? "bg-primary" : "bg-secondary/50"
+        -->
+        <div class="flex gap-0.5">
+          @for (level of confidenceLevels; track level) {
+            <div class="h-2 w-4 rounded-sm transition-colors"
+              [class.bg-primary]="level <= analysis.confidence"
+              [class.bg-secondary]="level > analysis.confidence">
+            </div>
+          }
+        </div>
+
+        <!--
+          confidenceLabel es un GETTER del .ts.
+          Devuelve 'Alto', 'Medio' o 'Bajo' según analysis.confidence.
+          Angular lo trata como una propiedad calculada.
+        -->
+        <span class="inline-flex items-center rounded-full bg-primary/20 px-2 py-0.5 text-[10px] font-medium text-primary">
+          {{ confidenceLabel }}
+        </span>
+      </div>
+    </div>
+
+    <!-- ─── Badge del Favorito ───────────────────────────────────────────── -->
+    <div class="flex items-center justify-center">
+      <span class="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/20 px-3 py-1 text-xs font-medium text-primary">
+        <!-- Sparkles pequeño -->
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3"
+          viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+        </svg>
+        Favorito según datos: {{ analysis.favorite }}
+      </span>
+    </div>
+
+  </div>
+</div>
+
+} <!-- fin @if (analysis) -->

@@ -1,0 +1,167 @@
+<!--
+  TEMPLATE: filter-bar.html
+  Corresponde a FilterBarComponent (selector: app-filter-bar)
+
+  CONCEPTOS ANGULAR EN ESTE TEMPLATE:
+  ──────────────────────────────────────────────────────────────────────────────
+  [value]="searchQuery"            → Property binding: sincroniza el input con el @Input
+  (input)="onSearchInput($event)"  → Event binding: llama al método cuando el usuario escribe
+  [value]="competition"            → Sincroniza el <select> con el @Input
+  (change)="onCompetitionChange($event)" → Evento de cambio del select
+  (click)="statusChanged.emit('upcoming')" → Emite directamente el @Output sin pasar por método
+  [class.bg-background]="status === 'upcoming'" → Class binding condicional para el tab activo
+  @for (comp of competitions; track comp.value) → Loop sobre el array de competiciones
+  ──────────────────────────────────────────────────────────────────────────────
+
+  REEMPLAZOS de componentes shadcn/ui:
+  <Input>  → <input> nativo estilizado con Tailwind
+  <Select> → <select> nativo con apariencia personalizada + svg de flecha
+  <Tabs>   → <div> con botones y clase activa condicional
+-->
+
+<div class="border-b border-border bg-card/50 backdrop-blur-sm">
+  <div class="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+
+      <!-- ─── Fila izquierda: Buscador + Select de liga ───────────────────── -->
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+
+        <!-- BUSCADOR -->
+        <!--
+          "relative" en el div para que el ícono SVG se posicione
+          de forma absoluta DENTRO de él (no del body completo).
+        -->
+        <div class="relative">
+          <!-- Ícono de búsqueda (posicionado absolutamente dentro del input) -->
+          <svg xmlns="http://www.w3.org/2000/svg"
+            class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none"
+            viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="m21 21-4.35-4.35"/>
+          </svg>
+
+          <!--
+            [value]="searchQuery" → muestra el valor actual del @Input
+            (input)="..." → dispara cuando el usuario escribe (no al hacer submit)
+
+            pl-10: padding-left para que el texto no tape el ícono de búsqueda
+          -->
+          <input
+            id="search-matches"
+            type="text"
+            placeholder="Buscar equipo..."
+            [value]="searchQuery"
+            (input)="onSearchInput($event)"
+            class="w-full rounded-md border border-border bg-background/50 py-2 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 sm:w-64"
+          />
+        </div>
+
+        <!-- SELECT DE COMPETICIÓN -->
+        <!--
+          El <select> nativo es difícil de estilizar su flecha en diferentes browsers.
+          Solución: "appearance-none" oculta la flecha nativa y agregamos nuestro
+          propio SVG de flecha absolutamente posicionado dentro del wrapper "relative".
+        -->
+        <div class="relative">
+          <!--
+            [value]="competition" → sincroniza con el @Input del componente
+            (change)="..." → emite el @Output cuando el usuario elige una opción
+          -->
+          <select
+            id="competition-filter"
+            [value]="competition"
+            (change)="onCompetitionChange($event)"
+            class="w-full appearance-none rounded-md border border-border bg-background/50 py-2 pl-3 pr-9 text-sm text-foreground focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 sm:w-52"
+          >
+            <!--
+              @for — nueva sintaxis de control de flujo Angular 17+
+              Itera sobre el array "competitions" definido en filter-bar.ts
+              "track comp.value" es OBLIGATORIO: ayuda a Angular a identificar
+              cada elemento para actualizaciones eficientes del DOM.
+
+              Equivalente en React: {competitions.map(comp => <option key={comp.value}>)}
+            -->
+            @for (comp of competitions; track comp.value) {
+              <option [value]="comp.value">{{ comp.label }}</option>
+            }
+          </select>
+
+          <!-- Flecha personalizada del select (reemplaza la flecha nativa) -->
+          <svg xmlns="http://www.w3.org/2000/svg"
+            class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+            viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- ─── Fila derecha: Tabs de estado (Próximos / En Vivo / Finalizados) ── -->
+      <!--
+        Implementamos los "Tabs" como un grupo de botones con estado visual.
+        La clase activa se aplica dinámicamente con [class.X]="condición".
+
+        [class.bg-background]="status === 'upcoming'"
+        ↑ Agrega la clase bg-background SOLO cuando status es 'upcoming'
+
+        (click)="statusChanged.emit('upcoming')"
+        ↑ Emite directamente el @Output sin pasar por un método intermediario
+          (es válido para casos simples como este)
+      -->
+      <div class="inline-flex w-full rounded-lg border border-border bg-secondary/30 p-1 lg:w-auto"
+        role="tablist"
+        aria-label="Filtrar por estado del partido">
+
+        <!-- Tab: Próximos -->
+        <button
+          role="tab"
+          id="tab-upcoming"
+          [attr.aria-selected]="status === 'upcoming'"
+          (click)="statusChanged.emit('upcoming')"
+          class="flex-1 rounded-md px-4 py-1.5 text-sm font-medium transition-all duration-200 lg:flex-none"
+          [class.bg-background]="status === 'upcoming'"
+          [class.text-foreground]="status === 'upcoming'"
+          [class.shadow-sm]="status === 'upcoming'"
+          [class.text-muted-foreground]="status !== 'upcoming'"
+          [class.hover:text-foreground]="status !== 'upcoming'"
+        >
+          Próximos
+        </button>
+
+        <!-- Tab: En Vivo -->
+        <button
+          role="tab"
+          id="tab-live"
+          [attr.aria-selected]="status === 'live'"
+          (click)="statusChanged.emit('live')"
+          class="flex-1 items-center justify-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium transition-all duration-200 lg:flex-none"
+          [class.bg-background]="status === 'live'"
+          [class.text-foreground]="status === 'live'"
+          [class.shadow-sm]="status === 'live'"
+          [class.text-muted-foreground]="status !== 'live'"
+        >
+          <!-- Punto rojo animado que indica "en vivo" -->
+          <span class="mr-1.5 inline-block h-2 w-2 animate-pulse rounded-full bg-red-500"></span>
+          En Vivo
+        </button>
+
+        <!-- Tab: Finalizados -->
+        <button
+          role="tab"
+          id="tab-finished"
+          [attr.aria-selected]="status === 'finished'"
+          (click)="statusChanged.emit('finished')"
+          class="flex-1 rounded-md px-4 py-1.5 text-sm font-medium transition-all duration-200 lg:flex-none"
+          [class.bg-background]="status === 'finished'"
+          [class.text-foreground]="status === 'finished'"
+          [class.shadow-sm]="status === 'finished'"
+          [class.text-muted-foreground]="status !== 'finished'"
+        >
+          Finalizados
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>

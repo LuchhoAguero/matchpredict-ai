@@ -1,0 +1,183 @@
+/**
+ * ARCHIVO: mock-matches.ts
+ * PROPÓSITO: Datos de prueba que simulan lo que enviará la API real en el futuro.
+ *
+ * Por qué hacemos esto:
+ * En el desarrollo real, la API de fútbol puede no estar lista todavía,
+ * o puede tener límite de requests. Los "mocks" nos permiten trabajar
+ * y diseñar la UI sin depender de servicios externos.
+ *
+ * Cuando la API esté lista, simplemente reemplazamos este array
+ * por una llamada HTTP, y el resto de la app no cambia nada.
+ *
+ * Importamos la interfaz Match para que TypeScript valide
+ * que cada objeto tenga exactamente las propiedades correctas.
+ */
+import { Match } from '../models/match.model';
+
+export const MOCK_MATCHES: Match[] = [
+  // ─── PARTIDOS PRÓXIMOS (upcoming) ──────────────────────────────────────────
+  {
+    id: '1',
+    league: 'Premier League',
+    leagueShort: 'PL',
+    date: '15 Jun',
+    time: '16:00',
+    homeTeam: 'Manchester City',
+    homeTeamShort: 'MCI',
+    awayTeam: 'Arsenal',
+    awayTeamShort: 'ARS',
+    status: 'upcoming',
+  },
+  {
+    id: '2',
+    league: 'La Liga',
+    leagueShort: 'LaLiga',
+    date: '15 Jun',
+    time: '21:00',
+    homeTeam: 'Real Madrid',
+    homeTeamShort: 'RMA',
+    awayTeam: 'Barcelona',
+    awayTeamShort: 'BAR',
+    status: 'upcoming',
+  },
+  {
+    id: '3',
+    league: 'Serie A',
+    leagueShort: 'SerieA',
+    date: '16 Jun',
+    time: '18:00',
+    homeTeam: 'Juventus',
+    homeTeamShort: 'JUV',
+    awayTeam: 'Inter Milan',
+    awayTeamShort: 'INT',
+    status: 'upcoming',
+  },
+  {
+    id: '4',
+    league: 'Bundesliga',
+    leagueShort: 'BuLi',
+    date: '16 Jun',
+    time: '15:30',
+    homeTeam: 'Bayern Munich',
+    homeTeamShort: 'BAY',
+    awayTeam: 'Borussia Dortmund',
+    awayTeamShort: 'BVB',
+    status: 'upcoming',
+  },
+  {
+    id: '5',
+    league: 'Liga Argentina',
+    leagueShort: 'ARG',
+    date: '16 Jun',
+    time: '19:00',
+    homeTeam: 'Boca Juniors',
+    homeTeamShort: 'BOC',
+    awayTeam: 'River Plate',
+    awayTeamShort: 'RIV',
+    status: 'upcoming',
+  },
+  {
+    id: '6',
+    league: 'Champions League',
+    leagueShort: 'UCL',
+    date: '17 Jun',
+    time: '20:00',
+    homeTeam: 'Paris Saint-Germain',
+    homeTeamShort: 'PSG',
+    awayTeam: 'Manchester United',
+    awayTeamShort: 'MUN',
+    status: 'upcoming',
+  },
+
+  // ─── PARTIDOS EN VIVO (live) ────────────────────────────────────────────────
+  {
+    id: '7',
+    league: 'Premier League',
+    leagueShort: 'PL',
+    date: 'Hoy',
+    time: 'En vivo',
+    homeTeam: 'Liverpool',
+    homeTeamShort: 'LIV',
+    awayTeam: 'Chelsea',
+    awayTeamShort: 'CHE',
+    homeScore: 2,
+    awayScore: 1,
+    status: 'live',
+    minute: 67,
+  },
+  {
+    id: '8',
+    league: 'La Liga',
+    leagueShort: 'LaLiga',
+    date: 'Hoy',
+    time: 'En vivo',
+    homeTeam: 'Atlético Madrid',
+    homeTeamShort: 'ATM',
+    awayTeam: 'Sevilla',
+    awayTeamShort: 'SEV',
+    homeScore: 0,
+    awayScore: 0,
+    status: 'live',
+    minute: 23,
+  },
+  {
+    id: '9',
+    league: 'Ligue 1',
+    leagueShort: 'L1',
+    date: 'Hoy',
+    time: 'En vivo',
+    homeTeam: 'Lyon',
+    homeTeamShort: 'LYO',
+    awayTeam: 'Marseille',
+    awayTeamShort: 'MAR',
+    homeScore: 3,
+    awayScore: 2,
+    status: 'live',
+    minute: 82,
+  },
+
+  // ─── PARTIDOS FINALIZADOS (finished) ───────────────────────────────────────
+  {
+    id: '10',
+    league: 'Premier League',
+    leagueShort: 'PL',
+    date: '14 Jun',
+    time: '15:00',
+    homeTeam: 'Tottenham',
+    homeTeamShort: 'TOT',
+    awayTeam: 'Newcastle',
+    awayTeamShort: 'NEW',
+    homeScore: 1,
+    awayScore: 3,
+    status: 'finished',
+  },
+  {
+    id: '11',
+    league: 'Serie A',
+    leagueShort: 'SerieA',
+    date: '14 Jun',
+    time: '20:45',
+    homeTeam: 'AC Milan',
+    homeTeamShort: 'MIL',
+    awayTeam: 'Napoli',
+    awayTeamShort: 'NAP',
+    homeScore: 2,
+    awayScore: 2,
+    status: 'finished',
+  },
+  {
+    id: '12',
+    league: 'Liga Argentina',
+    leagueShort: 'ARG',
+    date: '13 Jun',
+    time: '21:30',
+    homeTeam: 'Racing Club',
+    homeTeamShort: 'RAC',
+    awayTeam: 'Independiente',
+    awayTeamShort: 'IND',
+    homeScore: 4,
+    awayScore: 1,
+    status: 'finished',
+  },
+];
