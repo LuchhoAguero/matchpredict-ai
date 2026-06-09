@@ -2,59 +2,42 @@
  * ARCHIVO: app.routes.ts
  * PROPÓSITO: Define las rutas (URLs) de la aplicación.
  *
- * En Angular, cada ruta mapea un PATH de URL a un COMPONENTE.
- * Cuando el usuario visita esa URL, Angular renderiza el componente
- * correspondiente dentro del <router-outlet> del app.html.
+ * NUEVA ESTRUCTURA — Una sola página:
+ * ────────────────────────────────────────────────────────────────────────
+ * Antes teníamos dos rutas separadas:
+ *   /home      → HeroComponent (solo la portada)
+ *   /dashboard → DashboardComponent (solo los partidos)
  *
- * LAZY LOADING con loadComponent():
- * En vez de importar los componentes directamente (import estático),
- * usamos loadComponent() que carga el componente SOLO cuando se necesita.
+ * Ahora tenemos UNA sola ruta:
+ *   /  →  HomePageComponent (Hero + Dashboard en la misma página)
  *
- * Ventaja: el bundle inicial de la app es más pequeño y carga más rápido.
- * Es como decir: "No traigas todo el libro, solo el capítulo que voy a leer ahora."
+ * ¿Por qué es mejor para este proyecto?
+ *   - El usuario entra, ve la portada y scrollea para ver los partidos
+ *   - No necesita hacer click en un botón para "ir" al dashboard
+ *   - Es la experiencia típica de una landing page moderna
+ * ────────────────────────────────────────────────────────────────────────
  */
 import { Routes } from '@angular/router';
 
 export const routes: Routes = [
   /**
-   * Ruta raíz: redirige automáticamente a /home
-   * Si el usuario visita matchpredict.ai/, lo manda a matchpredict.ai/home
-   * pathMatch: 'full' significa que SOLO la URL exacta "/" dispara la redirección
+   * Ruta principal: la página de inicio completa (Hero + Dashboard).
+   *
+   * Usamos lazy loading con loadComponent() para que el bundle inicial
+   * sea pequeño — Angular carga HomePageComponent solo cuando se necesita.
    */
   {
     path: '',
-    redirectTo: 'home',
-    pathMatch: 'full',
-  },
-
-  /**
-   * Ruta /home → muestra el HeroComponent (la portada)
-   *
-   * loadComponent() recibe una función arrow que hace un import() dinámico.
-   * La sintaxis .then(c => c.HeroComponent) indica QUÉ exportación del archivo
-   * queremos usar (porque un archivo puede exportar múltiples cosas).
-   */
-  {
-    path: 'home',
     loadComponent: () =>
-      import('./components/hero/hero').then((c) => c.HeroComponent),
+      import('./pages/home-page/home-page').then((c) => c.HomePageComponent),
   },
 
   /**
-   * Ruta /dashboard → muestra el DashboardComponent
-   */
-  {
-    path: 'dashboard',
-    loadComponent: () =>
-      import('./components/dashboard/dashboard').then((c) => c.DashboardComponent),
-  },
-
-  /**
-   * Wildcard: captura cualquier URL que no coincida con las rutas anteriores.
-   * Redirige al home para evitar pantallas en blanco.
+   * Wildcard: cualquier URL inválida redirige a la página principal.
+   * Ejemplo: si alguien escribe /algo-que-no-existe → va a /
    */
   {
     path: '**',
-    redirectTo: 'home',
+    redirectTo: '',
   },
 ];

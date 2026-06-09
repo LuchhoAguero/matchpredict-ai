@@ -1,0 +1,29 @@
+<!--
+  TEMPLATE: home-page.html
+  Corresponde a HomePageComponent (selector: app-home-page)
+
+  Esta es la página principal de MatchPredict AI.
+  Simplemente apila dos componentes uno debajo del otro.
+
+  ¿Por qué el id="matches" en la sección del dashboard?
+  ────────────────────────────────────────────────────────
+  El id permite que el Hero haga scroll directo hasta aquí usando:
+    document.getElementById('matches')?.scrollIntoView({ behavior: 'smooth' })
+
+  Cuando el usuario hace click en "Empezar Análisis" o "Explorar partidos"
+  en el Hero, el scroll baja suavemente hasta esta sección.
+
+  Es una alternativa a la navegación por rutas — todo queda en la misma URL.
+-->
+
+<!-- Hero: ocupa toda la pantalla inicial (min-h-screen definido en el componente) -->
+<app-hero />
+
+<!-- Dashboard: comienza justo debajo del hero -->
+<!--
+  "id" es un atributo HTML estándar — no es específico de Angular.
+  Lo usamos como punto de anclaje para el scroll programático del hero.
+-->
+<section id="matches">
+  <app-dashboard />
+</section>

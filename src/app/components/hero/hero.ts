@@ -3,56 +3,53 @@
  * ARCHIVO: hero.ts
  * SELECTOR: <app-hero>
  *
- * Este componente muestra la "portada" o landing page de la aplicación.
- * Ocupa toda la pantalla y tiene dos acciones principales:
- *   1. Ir al Dashboard (ruta /dashboard)
- *   2. Hacer scroll suave hacia abajo ("Saber más")
+ * Portada de la aplicación. Ocupa toda la pantalla inicial.
  *
- * IMPORTANTE — ¿Cómo difiere del original de Next.js?
- * El original recibía "onStartAnalysis" como una PROP (propiedad de React).
- * En Angular, la navegación se maneja directamente con el Router o routerLink.
- * Para esta app, usamos routerLink en el template y el Router en el .ts.
+ * CAMBIO RESPECTO A LA VERSIÓN ANTERIOR:
+ * ────────────────────────────────────────────────────────────────────────
+ * Antes: los botones navegaban a la ruta /dashboard con Router.navigate().
+ * Ahora: los botones hacen SCROLL SUAVE hasta la sección #matches de la
+ *         misma página — porque ahora todo está en una sola página unificada.
  *
- * IMPORTS:
- * - Router: el servicio de Angular para navegar entre rutas por código.
- * - RouterLink: para usar [routerLink]="/ruta" en el HTML directamente.
+ * Esta es la diferencia entre:
+ *   - Navegación entre páginas → router.navigate(['/otra-ruta'])
+ *   - Scroll dentro de la misma página → scrollIntoView() o scrollTo()
+ *
+ * Para una SPA de tipo "landing page", el scroll en la misma página
+ * da una experiencia más fluida y moderna.
+ * ────────────────────────────────────────────────────────────────────────
  */
 import { Component } from '@angular/core';
-import { Router } from '@angular/router';
 
 @Component({
-  selector: 'app-hero',       // Uso: <app-hero /> en el template del padre
+  selector: 'app-hero',
   standalone: true,
-  imports: [],                // Sin imports de directivas (usamos Router programáticamente)
+  imports: [],
   templateUrl: './hero.html',
 })
 export class HeroComponent {
 
   /**
-   * INYECCIÓN DE DEPENDENCIAS (versión simple)
+   * Hace scroll suave hasta la sección de partidos (#matches).
    *
-   * El constructor es el lugar donde Angular "inyecta" servicios en el componente.
-   * Al declarar "private router: Router", Angular automáticamente nos da
-   * una instancia del servicio Router para usar dentro de la clase.
+   * getElementById('matches') busca el elemento con id="matches" en el DOM.
+   * scrollIntoView() lo desplaza hasta hacerlo visible.
+   * { behavior: 'smooth' } activa la animación de scroll suave.
    *
-   * Piénsalo como: "Necesito el GPS (Router) para poder navegar entre páginas".
+   * Este id "matches" está definido en home-page.html:
+   *   <section id="matches"> <app-dashboard /> </section>
+   *
+   * El "?" es optional chaining: si el elemento no existe (null),
+   * no llama a scrollIntoView() y evita un error.
    */
-  constructor(private router: Router) {}
-
-  /**
-   * Navega programáticamente al Dashboard.
-   * Se llama cuando el usuario hace click en "Empezar Análisis".
-   *
-   * router.navigate() es equivalente a window.location.href = '/dashboard',
-   * pero SIN recargar la página (es SPA behavior).
-   */
-  goToDashboard(): void {
-    this.router.navigate(['/dashboard']);
+  scrollToMatches(): void {
+    document.getElementById('matches')?.scrollIntoView({ behavior: 'smooth' });
   }
 
   /**
-   * Hace scroll suave hacia abajo al hacer click en "Saber más".
-   * window.scrollTo() es JavaScript nativo — funciona igual en Angular.
+   * Hace scroll suave hacia abajo (para el botón "Saber más").
+   * Baja el 80% de la altura de la pantalla — llega justo al inicio
+   * de la sección del dashboard.
    */
   scrollDown(): void {
     window.scrollTo({
