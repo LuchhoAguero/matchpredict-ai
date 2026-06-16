@@ -24,7 +24,7 @@ export const environment = {
   production: true,
 
   // En producción, estas values vendrían de variables de entorno del servidor
-  apiFootballKey:  '',
+  apiFootballKey: '',
   apiFootballHost: 'v3.football.api-sports.io',
-  apiFootballUrl:  'https://v3.football.api-sports.io',
+  apiFootballUrl: 'https://v3.football.api-sports.io',
 };

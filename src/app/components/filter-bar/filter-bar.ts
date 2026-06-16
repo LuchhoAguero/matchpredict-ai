@@ -61,18 +61,14 @@ export class FilterBarComponent {
 
   /**
    * Lista de competiciones para el <select> de filtro.
-   * Es una constante de la clase (no cambia), definida directamente aquí
-   * porque solo la usa este componente.
+   * Solo las dos fuentes activas que consulta FootballService:
+   *   - Copa del Mundo  (via endpoint de fecha, id: 1)
+   *   - Liga Argentina  (LEAGUE_CONFIG id: 128, season: 2026)
    */
   readonly competitions = [
-    { value: 'all',               label: 'Todas las Competiciones' },
-    { value: 'premier-league',    label: 'Premier League' },
-    { value: 'la-liga',           label: 'La Liga' },
-    { value: 'serie-a',           label: 'Serie A' },
-    { value: 'bundesliga',        label: 'Bundesliga' },
-    { value: 'ligue-1',           label: 'Ligue 1' },
-    { value: 'liga-argentina',    label: 'Liga Argentina' },
-    { value: 'champions-league',  label: 'Champions League' },
+    { value: 'all',            label: 'Todas las Competiciones' },
+    { value: 'copa-mundial',   label: '🌍 Copa del Mundo 2026'  },
+    { value: 'liga-argentina', label: '🇦🇷 Liga Argentina'      },
   ];
 
   /**

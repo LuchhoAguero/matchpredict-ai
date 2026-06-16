@@ -22,11 +22,11 @@ export const environment = {
   production: false,
 
   // ↓↓↓ PEGÁ TU API KEY REAL DE api-sports.io ACÁ ↓↓↓
-  apiFootballKey:  'PEGA_TU_API_KEY_AQUI',
+  apiFootballKey: 'a58d6357f021e2a8269f217481cd4679',
 
   // El host que va en el header x-rapidapi-host
   apiFootballHost: 'v3.football.api-sports.io',
 
   // URL base para las peticiones HTTP
-  apiFootballUrl:  'https://v3.football.api-sports.io',
+  apiFootballUrl: 'https://v3.football.api-sports.io',
 };

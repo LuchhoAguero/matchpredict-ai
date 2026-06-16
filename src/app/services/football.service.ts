@@ -2,77 +2,70 @@
  * SERVICIO: FootballService
  * ARCHIVO: football.service.ts
  * ─────────────────────────────────────────────────────────────────────────────
- * Un "servicio" en Angular es una clase que contiene LÓGICA DE NEGOCIO
- * reutilizable — en este caso, todas las llamadas HTTP a la API de fútbol.
+ * Responsabilidad única: hablar con la API de api-sports.io y devolver
+ * datos ya transformados al formato Match[] que usan los componentes.
  *
- * ¿Por qué separar la lógica en un servicio y no en el componente?
- *   - Reutilizable: cualquier componente puede pedir datos sin duplicar código
- *   - Testeable: podemos probar el servicio aislado del componente
- *   - Responsabilidad única: el componente solo muestra datos, el servicio los obtiene
- *
- * ARQUITECTURA DE ESTE SERVICIO:
+ * ARQUITECTURA NUEVA — forkJoin en paralelo:
  * ─────────────────────────────────────────────────────────────────────────────
  *
  *   DashboardComponent
  *        │
- *        │ footService.getMatches('2024', '1', 'all')
+ *        │ footballService.getMatches()
  *        ▼
  *   FootballService
  *        │
- *        ├── ¿Hay datos en caché? → SÍ → devuelve los datos (0 peticiones HTTP)
+ *        ├── ¿Hay datos en caché? → SÍ → devuelve Match[] al instante (0 HTTP)
  *        │
- *        └── ¿Hay datos en caché? → NO → petición HTTP → guarda en caché → devuelve datos
- *
- * FLUJO RxJS (para entender los operadores):
- *
- *   this.http.get(url, { headers })  ← Observable<ApiResponse>
- *        │
- *        │ .pipe()  ← "tubería" que encadena transformaciones
- *        │
- *        ├── map(response => ...)     ← transforma el objeto de la API al formato Match[]
- *        │
- *        └── catchError(err => ...)  ← captura errores y devuelve array vacío (no rompe la app)
+ *        └── NO → lanza 4 peticiones HTTP EN PARALELO con forkJoin
+ *                       │        │        │        │
+ *                    Liga AR  Premier  LaLiga   Mundial
+ *                       │        │        │        │
+ *                       └────────┴────────┴────────┘
+ *                                     │
+ *                              forkJoin espera a que
+ *                              TODAS terminen
+ *                                     │
+ *                              une los resultados en
+ *                              un único Match[] flat
+ *                                     │
+ *                              guarda en caché
+ *                                     │
+ *                              devuelve al Dashboard
  * ─────────────────────────────────────────────────────────────────────────────
  */
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable, of, throwError } from 'rxjs';
+import { Observable, of, forkJoin } from 'rxjs';
 import { map, catchError, tap } from 'rxjs/operators';
 
-// Importamos el environment. Angular CLI reemplaza esto con
-// environment.development.ts cuando corrés "ng serve".
 import { environment } from '../../environments/environment';
-
-// La interfaz Match que ya definimos — así TypeScript valida los datos
 import { Match } from '../models/match.model';
 
-// ─── Interfaces para tipar la respuesta de API-Football ───────────────────────
-// La API devuelve una estructura compleja — la tipamos para no perdernos.
+// ─── Interfaces: tipan la respuesta cruda de la API ───────────────────────────
 
-/** Estructura del fixture (partido) en la respuesta de API-Football */
-interface ApiFixture {
-  id: number;
-  date: string;
-  status: {
-    short: string;  // 'NS' = Not Started, 'FT' = Full Time, '1H' = First Half, etc.
-    elapsed: number | null;  // Minuto actual del partido (null si no empezó)
-  };
+interface ApiFixtureStatus {
+  long: string;
+  short: string;        // 'NS' | '1H' | 'HT' | '2H' | 'FT' | 'AET' | ...
+  elapsed: number | null; // Minuto del partido, null si no empezó
 }
 
-/** Estructura de un equipo en la respuesta de API-Football */
+interface ApiFixture {
+  id: number;
+  date: string;   // ISO 8601: "2025-06-15T20:00:00+00:00"
+  status: ApiFixtureStatus;
+}
+
 interface ApiTeam {
   id: number;
   name: string;
   logo: string;
 }
 
-/** Estructura de los goles en la respuesta */
 interface ApiGoals {
   home: number | null;
   away: number | null;
 }
 
-/** Estructura de la liga en la respuesta */
 interface ApiLeague {
   id: number;
   name: string;
@@ -82,7 +75,6 @@ interface ApiLeague {
   round: string;
 }
 
-/** Un partido completo en la respuesta de API-Football */
 interface ApiMatch {
   fixture: ApiFixture;
   league: ApiLeague;
@@ -93,279 +85,442 @@ interface ApiMatch {
   goals: ApiGoals;
 }
 
-/** La respuesta completa de la API */
 interface ApiResponse {
   get: string;
   parameters: Record<string, string>;
   errors: unknown[];
   results: number;
-  response: ApiMatch[];  // El array de partidos que nos importa
+  response: ApiMatch[]; // ← el array de partidos que nos importa
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * @Injectable({ providedIn: 'root' })
+ * LEAGUE_CONFIG — Ligas y temporadas a consultar con forkJoin.
  *
- * Este decorador le dice a Angular dos cosas:
- * 1. Que esta clase ES un servicio inyectable
- * 2. providedIn: 'root' → es un SINGLETON: existe una sola instancia en toda la app
- *    (como una variable global pero gestionada por Angular)
+ * ⚠️  TEMPORADAS EUROPEAS:
+ *   La temporada "2024/25" se identifica como season=2024 en la API
+ *   (el año de inicio). Esa temporada terminó en mayo 2025.
+ *   → Todos sus partidos aparecen como "Finalizados".
  *
- * Un "singleton" es importante para la caché: si hubiera múltiples instancias,
- * cada una tendría su propia caché separada y la optimización no funcionaría.
+ * ⚠️  PARA VER PARTIDOS "PRÓXIMOS" en el tab Upcoming:
+ *   Necesitás ligas actualmente en temporada. En junio 2026, opciones:
+ *   - Copa Libertadores  (id: 13,  season: 2026)
+ *   - Liga Argentina     (id: 128, season: 2026)
+ *   - MLS                (id: 253, season: 2026)
+ *   Si devuelven 0 resultados, la temporada aún no cargó en la API free tier.
+ *
+ * TEMPORADAS VERIFICADAS QUE DEVUELVEN DATOS:
+ *   - Premier League  (id: 39,  season: 2024) ✅ 380 partidos
+ *   - La Liga         (id: 140, season: 2024) ✅ 380 partidos
+ *   - Champions League(id: 2,   season: 2024) ✅ 225 partidos
+ *   - Liga Argentina  (id: 128, season: 2024) ✅ temporada Apertura/Clausura
  */
+/**
+ * LEAGUE_CONFIG — Ligas a consultar por liga+temporada.
+ * La Copa del Mundo se trae por separado via /fixtures?date=YYYY-MM-DD
+ * porque el free tier no soporta consultas por league=1&season=2026.
+ *
+ * Solo Liga Argentina aquí: reduce las peticiones al mínimo posible.
+ * season: 2026 para tener partidos actuales (próximos + en juego).
+ */
+const LEAGUE_CONFIG = [
+  { id: 128, season: 2025, label: 'Liga Argentina 2025' }, // Temporada actual → próximos + en vivo
+  { id: 128, season: 2024, label: 'Liga Argentina 2024' }, // Temporada anterior → finalizados garantizados
+] as const;
+
+/**
+ * IDs de ligas permitidas en el endpoint de fecha.
+ * Solo Copa del Mundo (1) y Liga Argentina (128) para minimizar peticiones
+ * y ruido de otras competiciones que no mostramos.
+ */
+const TOP_LEAGUE_IDS = [1, 128];
+
+/**
+ * Cuántos partidos traer por liga.
+ * Cambiá estos números según cuántas tarjetas quieras mostrar en el Dashboard.
+ */
+const FINISHED_PER_LEAGUE = 15; // últimos N partidos finalizados por liga
+const UPCOMING_PER_LEAGUE = 10; // próximos N partidos por liga (subimos para el Mundial)
+
+// Códigos de estado de la API que consideramos "finalizado" o "en juego"
+const FINISHED_STATUSES = ['FT', 'AET', 'PEN', 'CANC', 'ABD', 'AWD', 'WO'];
+const LIVE_STATUSES = ['1H', 'HT', '2H', 'ET', 'BT', 'P', 'INT', 'LIVE'];
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 @Injectable({ providedIn: 'root' })
 export class FootballService {
 
-  /**
-   * inject() — Forma moderna de inyección de dependencias en Angular 14+
-   * Es equivalente a declarar "constructor(private http: HttpClient) {}"
-   * pero más concisa y funciona fuera del constructor también.
-   */
   private http = inject(HttpClient);
 
   /**
    * CACHÉ EN MEMORIA
-   * ─────────────────────────────────────────────────────────────────────────
-   * Un Map<string, Match[]> donde:
-   *   - La clave (string) es la combinación de parámetros de la búsqueda
-   *     Ejemplo: "2024-1-all" para temporada 2024, liga 1, todos los estados
-   *   - El valor (Match[]) es el array de partidos ya procesados
+   * Clave: string fija 'all-leagues' (porque ahora traemos todo junto).
+   * Valor: Match[] con todos los partidos de todas las ligas configuradas.
    *
-   * ¿Por qué un Map y no un simple array?
-   * Con un Map podemos guardar MÚLTIPLES caché diferentes:
-   *   "2024-1-all"   → partidos de La Liga 2024
-   *   "2024-140-all" → partidos de la Champions 2024
-   *   etc.
-   *
-   * La API gratuita permite 50 peticiones/día — sin caché, el usuario agotaría
-   * el límite en minutos al filtrar por diferentes ligas.
+   * La API gratuita tiene 50 peticiones/día. Con 4 ligas, cada llamada
+   * consume 4 peticiones. La caché nos da 12 llamadas máximas por día.
    */
   private cache = new Map<string, Match[]>();
 
+  /** Clave de caché fija para el conjunto de todas las ligas */
+  private readonly CACHE_KEY = 'all-leagues';
+
   /**
-   * Headers HTTP requeridos por API-Football (RapidAPI format).
-   * Se leen del environment → la key nunca queda hardcodeada en el código.
-   *
-   * HttpHeaders es la clase de Angular para crear cabeceras HTTP.
-   * Es inmutable: cada "set" devuelve un objeto nuevo (no modifica el original).
+   * GETTER: apiHeaders
+   * Construye los HttpHeaders con la API Key del environment.
+   * 'x-apisports-key' es el header requerido por api-sports.io directo
+   * (distinto de RapidAPI que usa 'x-rapidapi-key').
    */
   private get apiHeaders(): HttpHeaders {
     return new HttpHeaders({
-      'x-rapidapi-key':  environment.apiFootballKey,
-      'x-rapidapi-host': environment.apiFootballHost,
+      'x-apisports-key': environment.apiFootballKey,
     });
   }
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // MÉTODO PRINCIPAL
+  // ──────────────────────────────────────────────────────────────────────────
+
   /**
-   * getMatches() — Método principal del servicio.
+   * getMatches() — Trae partidos de múltiples ligas en paralelo con forkJoin.
    *
-   * @param season  Temporada (ej: '2024')
-   * @param leagueId ID de la liga en API-Football (ej: '140' = La Liga, '39' = Premier League)
-   * @param round  Ronda del torneo o 'all' para todos
-   * @returns Observable<Match[]> — un "stream" que emite el array de partidos
-   *
-   * ¿Qué es un Observable?
-   * ─────────────────────────────────────────────────────────────────────────
-   * Un Observable es como una "promesa mejorada". Representa un valor futuro
-   * que puede llegar de forma asincrónica (desde la red, un timer, etc.)
-   *
-   * El componente que llame a getMatches() debe "suscribirse" al Observable:
-   *   this.footballService.getMatches('2024', '140', 'all').subscribe(matches => {
-   *     this.matches = matches;  // aquí llegan los datos
-   *   });
+   * @returns Observable<Match[]> con todos los partidos de las ligas configuradas,
+   *          ya filtrados y ordenados (finalizados + próximos).
    */
-  getMatches(season: string, leagueId: string, round: string): Observable<Match[]> {
+  getMatches(): Observable<Match[]> {
 
-    // Creamos una clave única para esta combinación de parámetros
-    // Así podemos tener caché separada para cada liga/temporada
-    const cacheKey = `${season}-${leagueId}-${round}`;
-
-    // ─── VERIFICACIÓN DE CACHÉ ────────────────────────────────────────────
-    // this.cache.has(cacheKey) devuelve true si ya tenemos datos para esta clave
-    if (this.cache.has(cacheKey)) {
-      console.log(`[FootballService] 💾 Caché hit para: ${cacheKey}`);
-
-      /**
-       * of() crea un Observable "instantáneo" que emite el valor dado de inmediato
-       * y se completa. Es la forma de "envolver" un valor sincrónico en un Observable.
-       *
-       * this.cache.get(cacheKey)! — el "!" es non-null assertion:
-       * le decimos a TypeScript "sé que no es undefined porque ya verifiqué con .has()"
-       */
-      return of(this.cache.get(cacheKey)!);
+    // ── VERIFICACIÓN DE CACHÉ ────────────────────────────────────────────────
+    if (this.cache.has(this.CACHE_KEY)) {
+      console.log('[FootballService] 💾 Caché hit — devolviendo datos sin HTTP');
+      return of(this.cache.get(this.CACHE_KEY)!);
     }
 
-    // ─── PETICIÓN HTTP (solo si no hay caché) ────────────────────────────
-    console.log(`[FootballService] 🌐 Petición HTTP para: ${cacheKey}`);
+    console.log('[FootballService] 🌐 Iniciando peticiones paralelas con forkJoin...');
 
-    // Construimos la URL del endpoint
-    const url = `${environment.apiFootballUrl}/fixtures?season=${season}&league=${leagueId}`;
-
+    // ── OBSERVABLES DE FECHA (últimos 5 días) — captura el Mundial ───────────
     /**
-     * this.http.get<ApiResponse>(url, { headers })
+     * El free tier de api-sports.io NO permite consultar el Mundial por
+     * ?league=1&season=2026. SÍ permite consultar por ?date=YYYY-MM-DD.
      *
-     * .get<ApiResponse>() es un método genérico:
-     *   - El tipo entre <> le dice a TypeScript cómo tipear la respuesta
-     *   - url: la dirección del endpoint
-     *   - { headers: this.apiHeaders }: los headers con la API Key
+     * Problema: el endpoint de fecha solo devuelve UNA jornada.
+     * Solución: consultamos los últimos DAYS_BACK+1 días (hoy + días anteriores)
+     * para capturar tanto los partidos de hoy (live/upcoming) como los
+     * finalizados de días anteriores del Mundial.
      *
-     * Esto retorna un Observable<ApiResponse> — los datos aún no llegaron,
-     * solo estamos definiendo CÓMO obtenerlos cuando alguien se suscriba.
+     * DAYS_BACK = 2  → hoy + 2 días atrás  = 3 peticiones de fecha pasadas.
+     * DAYS_FORWARD = 5 → 5 días hacia adelante = 5 peticiones de fecha futuras.
+     * Total del método: 3 (pasado) + 5 (futuro) + 4 (ligas) = 12 peticiones por sesión.
      */
-    return this.http.get<ApiResponse>(url, { headers: this.apiHeaders }).pipe(
+    const DAYS_BACK = 2; // días hacia atrás (para partidos finalizados recientes)
+    const DAYS_FORWARD = 5; // días hacia adelante (para partidos PRÓXIMOS del Mundial)
 
-      /**
-       * .pipe() encadena operadores RxJS que transforman el Observable.
-       * Funciona como una tubería: la respuesta entra por un extremo
-       * y sale transformada por el otro.
-       */
+    // Fechas pasadas: hoy, ayer, hace 2 días
+    const pastDateObservables$ = this.getRecentDates(DAYS_BACK).map(
+      (date) => this.fetchFixturesByDate(date)
+    );
 
-      /**
-       * tap() — "Espiar" el Observable sin modificarlo.
-       * Se usa para efectos secundarios (logging, guardar en caché).
-       * tap NO transforma los datos — solo "hace algo" y los deja pasar.
-       *
-       * Guardamos en caché ANTES de mapear para tener los datos crudos
-       * listos, pero en este caso lo hacemos DESPUÉS de mapear para
-       * guardar los datos ya limpios (formato Match[]).
-       */
+    // Fechas futuras: mañana, pasado mañana ... hasta DAYS_FORWARD días
+    const futureDateObservables$ = this.getFutureDates(DAYS_FORWARD).map(
+      (date) => this.fetchFixturesByDate(date)
+    );
 
-      /**
-       * map() — Transforma cada valor que emite el Observable.
-       *
-       * Recibe la respuesta completa de la API (ApiResponse) y la convierte
-       * a Match[] usando la función privada mapApiMatchToMatch() de abajo.
-       *
-       * Equivalente a Array.map() pero para Observables.
-       *
-       * response.response es el array de partidos dentro del objeto de la API:
-       * {
-       *   "get": "fixtures",
-       *   "response": [ ...array de partidos aquí... ]
-       * }
-       */
-      map((response: ApiResponse) => {
-        const matches = response.response.map(
-          (apiMatch) => this.mapApiMatchToMatch(apiMatch)
+    const dateObservables$ = [...pastDateObservables$, ...futureDateObservables$];
+
+    // ── OBSERVABLES HISTÓRICOS POR LIGA (temporadas pasadas) ─────────────────
+    const leagueObservables$ = LEAGUE_CONFIG.map((league) =>
+      this.fetchLeagueMatches(league.id, league.season, league.label)
+    );
+
+    // ── FORKJOIN: combina TODAS las peticiones en paralelo ───────────────────
+    /**
+     * forkJoin lanza TODOS los Observables simultáneamente y espera a que
+     * TODOS completen. Equivale a Promise.all() pero para RxJS.
+     *
+     * [...dateObservables$, ...leagueObservables$]
+     *   spread operator: une los dos arrays en uno solo:
+     *   [hoy$, ayer$, hace2$, hace3$, hace4$, ucl$, arg$, epl$, laliga$]
+     *   → 9 peticiones HTTP en PARALELO
+     *
+     * Emite Match[][] → aplanamos con .flat() → deduplicamos por ID → Match[]
+     */
+    const totalDateObs = dateObservables$.length;
+    return forkJoin([...dateObservables$, ...leagueObservables$]).pipe(
+
+      map((results: Match[][]) => {
+        const merged = results.flat();
+
+        /**
+         * DEDUPLICACIÓN POR ID
+         * Un partido puede aparecer tanto en el endpoint de fecha
+         * como en el de liga (poco probable con temporadas pasadas, pero seguro).
+         * Map<string, Match> garantiza IDs únicos: si la clave ya existe,
+         * el segundo .set() sobreescribe en lugar de duplicar.
+         */
+        const unique = Array.from(new Map(merged.map(m => [m.id, m])).values());
+
+        const dateCount = totalDateObs;
+        const dateTotal = results.slice(0, dateCount).reduce((s, r) => s + r.length, 0);
+        const leagueSummary = results
+          .slice(dateCount)
+          .map((r, i) => `${LEAGUE_CONFIG[i].label}: ${r.length}`)
+          .join(', ');
+
+        console.log(
+          `[FootballService] 📦 Total: ${unique.length} únicos ` +
+          `(Fechas: ${dateTotal}, ${leagueSummary})`
         );
-        return matches;
+        return unique;
       }),
 
-      /**
-       * tap() — Después de mapear, guardamos los datos limpios en caché.
-       *
-       * ¿Por qué después del map()? Porque queremos guardar Match[]
-       * (datos limpios) y no ApiResponse (datos crudos de la API).
-       */
-      tap((matches: Match[]) => {
-        this.cache.set(cacheKey, matches);
-        console.log(`[FootballService] ✅ ${matches.length} partidos guardados en caché`);
+      tap((allMatches: Match[]) => {
+        this.cache.set(this.CACHE_KEY, allMatches);
+        console.log(`[FootballService] ✅ ${allMatches.length} partidos en caché`);
       }),
 
-      /**
-       * catchError() — Captura cualquier error HTTP y lo maneja gracefully.
-       *
-       * Sin catchError(), si la API devuelve un error 401 (unauthorized),
-       * el Observable falla y el componente no recibe nada — pantalla rota.
-       *
-       * Con catchError(), atrapamos el error, lo logueamos, y devolvemos
-       * un Observable de array vacío (of([])) — la app sigue funcionando.
-       *
-       * El parámetro "error" contiene el HttpErrorResponse con:
-       *   error.status  → código HTTP (401, 429, 500, etc.)
-       *   error.message → descripción del error
-       */
       catchError((error) => {
-        console.error('[FootballService] ❌ Error en la petición HTTP:', error);
-
-        if (error.status === 401) {
-          console.error('API Key inválida — verificá environment.development.ts');
-        } else if (error.status === 429) {
-          console.error('Límite de 50 peticiones diarias alcanzado');
-        }
-
-        // of([]) retorna un Observable que emite un array vacío — sin crashear la app
+        console.error('[FootballService] ❌ Error en forkJoin:', error);
         return of([]);
       })
     );
   }
 
+
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // MÉTODOS PRIVADOS: consultas por fecha (Mundial + ligas activas)
+  // ──────────────────────────────────────────────────────────────────────────
+
   /**
-   * mapApiMatchToMatch() — Transforma el formato complejo de la API
-   * al formato limpio de nuestra interfaz Match.
+   * getRecentDates(daysBack) — Genera un array de fechas YYYY-MM-DD.
    *
-   * ¿Por qué es necesario?
-   * La API devuelve objetos anidados y con nombres de campos distintos.
-   * Nuestros componentes esperan el formato Match definido en match.model.ts.
-   * Este método hace la traducción.
+   * @param daysBack  Cuántos días hacia atrás incluir (0 = solo hoy)
+   * @returns string[] de longitud daysBack+1: [hoy, ayer, hace2días, ...]
    *
-   * Es "private" porque es un detalle de implementación —
-   * nadie fuera de este servicio necesita llamarlo.
+   * Ejemplo con daysBack=4:
+   *   ['2026-06-15', '2026-06-14', '2026-06-13', '2026-06-12', '2026-06-11']
+   *
+   * new Date() → fecha actual
+   * setDate(getDate() - i) → retrocede i días
+   * toISOString().split('T')[0] → extrae solo la parte YYYY-MM-DD
+   */
+  private getRecentDates(daysBack: number): string[] {
+    return Array.from({ length: daysBack + 1 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      return d.toISOString().split('T')[0];
+    });
+  }
+
+  /**
+   * getFutureDates(daysForward) — Genera un array de fechas FUTURAS YYYY-MM-DD.
+   *
+   * @param daysForward  Cuántos días hacia adelante incluir (1 = solo mañana)
+   * @returns string[] de longitud daysForward: [mañana, pasado, ...]
+   *
+   * Esto permite traer partidos PRÓXIMOS del Mundial u otras ligas activas
+   * que están programados en los días siguientes.
+   */
+  private getFutureDates(daysForward: number): string[] {
+    return Array.from({ length: daysForward }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() + (i + 1)); // +1 para empezar desde mañana
+      return d.toISOString().split('T')[0];
+    });
+  }
+
+  /**
+   * fetchFixturesByDate(dateStr) — Trae los partidos de UNA fecha específica.
+   *
+   * Usa /fixtures?date=YYYY-MM-DD → devuelve todas las ligas del mundo ese día.
+   * Filtramos con TOP_LEAGUE_IDS para quedarnos solo con las que nos interesan.
+   *
+   * Para el Mundial: es la ÚNICA forma que funciona en el free tier.
+   * (/fixtures?league=1&season=2026 devuelve vacío en el plan gratuito)
+   *
+   * @param dateStr  Fecha en formato 'YYYY-MM-DD'
+   */
+  private fetchFixturesByDate(dateStr: string): Observable<Match[]> {
+    const url = `${environment.apiFootballUrl}/fixtures?date=${dateStr}`;
+    const isToday = dateStr === new Date().toISOString().split('T')[0];
+    console.log(`[FootballService] 📅 GET ${isToday ? 'HOY' : dateStr}: ${url}`);
+
+    return this.http.get<ApiResponse>(url, { headers: this.apiHeaders }).pipe(
+      map((apiResponse: ApiResponse) => {
+        const topMatches = apiResponse.response.filter(
+          (m) => TOP_LEAGUE_IDS.includes(m.league.id)
+        );
+        const leagues = [...new Set(topMatches.map(m => m.league.name))].join(', ');
+        console.log(
+          `[FootballService] 🏆 ${dateStr}: ${topMatches.length} partidos top ` +
+          `(de ${apiResponse.response.length} totales)` +
+          (leagues ? ` — ${leagues}` : '')
+        );
+        return topMatches.map((m) => this.mapApiMatchToMatch(m));
+      }),
+      catchError((error) => {
+        console.error(`[FootballService] ❌ Error en fecha ${dateStr}:`, error.status);
+        return of([]);
+      })
+    );
+  }
+
+
+  /**
+   * fetchLeagueMatches() — Hace UNA petición HTTP para una liga específica
+   * y recorta los resultados a los últimos N finalizados + próximos N.
+   *
+   * @param leagueId  ID de la liga en api-sports.io
+   * @param season    Temporada (ej: 2024, 2025, 2026)
+   * @param label     Nombre legible (solo para logs)
+   * @returns Observable<Match[]> con máximo FINISHED_PER_LEAGUE + UPCOMING_PER_LEAGUE partidos
+   */
+  private fetchLeagueMatches(
+    leagueId: number,
+    season: number,
+    label: string
+  ): Observable<Match[]> {
+    const url = `${environment.apiFootballUrl}/fixtures?league=${leagueId}&season=${season}`;
+    console.log(`[FootballService] 🔗 GET ${label}: ${url}`);
+
+    return this.http.get<ApiResponse>(url, { headers: this.apiHeaders }).pipe(
+
+      map((apiResponse: ApiResponse) => {
+        const rawMatches = apiResponse.response;
+
+        // ── SEPARAR POR STATUS ──────────────────────────────────────────────
+        /**
+         * Separamos el array crudo en tres grupos según el estado del partido:
+         *   - finished: los que ya terminaron (FT, AET, PEN...)
+         *   - live:     los que están en juego (1H, HT, 2H...)
+         *   - upcoming: los que aún no empezaron (NS, TBD, PST...)
+         *
+         * Usamos .filter() de JavaScript — recorre el array y devuelve
+         * solo los elementos para los que la función retorna true.
+         */
+        const finished = rawMatches.filter(m =>
+          FINISHED_STATUSES.includes(m.fixture.status.short)
+        );
+        const live = rawMatches.filter(m =>
+          LIVE_STATUSES.includes(m.fixture.status.short)
+        );
+        const upcoming = rawMatches.filter(m =>
+          !FINISHED_STATUSES.includes(m.fixture.status.short) &&
+          !LIVE_STATUSES.includes(m.fixture.status.short)
+        );
+
+        // ── ORDENAR Y RECORTAR ──────────────────────────────────────────────
+        /**
+         * Para "finalizados": ordenamos por fecha DESCENDENTE (más reciente primero)
+         * y tomamos los últimos FINISHED_PER_LEAGUE partidos.
+         *
+         * .sort() compara pares de elementos. Cuando el resultado es positivo,
+         * b va antes que a (orden descendente).
+         *
+         * new Date(b.fixture.date) > new Date(a.fixture.date) → b es más reciente → va primero.
+         *
+         * .slice(0, N) toma los primeros N elementos del array ya ordenado.
+         */
+        const recentFinished = finished
+          .sort((a, b) =>
+            new Date(b.fixture.date).getTime() - new Date(a.fixture.date).getTime()
+          )
+          .slice(0, FINISHED_PER_LEAGUE);
+
+        /**
+         * Para "próximos": ordenamos por fecha ASCENDENTE (el más cercano primero)
+         * y tomamos los próximos UPCOMING_PER_LEAGUE partidos.
+         */
+        const nextUpcoming = upcoming
+          .sort((a, b) =>
+            new Date(a.fixture.date).getTime() - new Date(b.fixture.date).getTime()
+          )
+          .slice(0, UPCOMING_PER_LEAGUE);
+
+        // Combinamos: en vivo primero (prioridad), luego próximos, luego finalizados
+        const selected = [...live, ...nextUpcoming, ...recentFinished];
+
+        console.log(
+          `[FootballService] ✂️  ${label}: ` +
+          `${live.length} live, ${nextUpcoming.length} próximos, ` +
+          `${recentFinished.length} finalizados → ${selected.length} total`
+        );
+
+        // Transformamos cada ApiMatch al formato Match limpio
+        return selected.map(m => this.mapApiMatchToMatch(m));
+      }),
+
+      /**
+       * catchError() por liga individual:
+       * Si ESTA liga falla (ej: temporada incorrecta, rate limit),
+       * devolvemos of([]) → forkJoin recibe [] para esta liga y continúa
+       * con las demás. Un fallo en una liga no cancela las otras.
+       */
+      catchError((error) => {
+        console.error(`[FootballService] ❌ Error en ${label}:`, error.status, error.message);
+        return of([]);
+      })
+    );
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // MÉTODO PRIVADO: transformación ApiMatch → Match
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /**
+   * mapApiMatchToMatch() — Patrón Adapter.
+   * Convierte el formato crudo de la API al formato limpio de nuestra interfaz Match.
+   * Si la API cambia su estructura, solo hay que tocar este método.
    */
   private mapApiMatchToMatch(apiMatch: ApiMatch): Match {
     const { fixture, league, teams, goals } = apiMatch;
 
-    // Determinamos el status basándonos en el código de la API:
-    // 'NS' = Not Started, 'FT' = Full Time, 'AET' = After Extra Time
-    // '1H', '2H', 'HT', 'ET', 'BT', 'P' = algún tipo de "en juego"
-    const liveStatuses = ['1H', '2H', 'HT', 'ET', 'BT', 'P', 'LIVE'];
-    const finishedStatuses = ['FT', 'AET', 'PEN'];
-
+    // Determinar el status semántico de nuestra app
     let status: 'upcoming' | 'live' | 'finished';
-    if (finishedStatuses.includes(fixture.status.short)) {
+    if (FINISHED_STATUSES.includes(fixture.status.short)) {
       status = 'finished';
-    } else if (liveStatuses.includes(fixture.status.short)) {
+    } else if (LIVE_STATUSES.includes(fixture.status.short)) {
       status = 'live';
     } else {
       status = 'upcoming';
     }
 
-    // Formateamos la fecha: "2024-06-15T16:00:00+00:00" → "15 Jun"
+    // Formatear fecha y hora en español
     const dateObj = new Date(fixture.date);
     const dateStr = dateObj.toLocaleDateString('es-AR', {
-      day: 'numeric',
-      month: 'short',
+      day: 'numeric', month: 'short',
     });
-
-    // Formateamos la hora: "2024-06-15T16:00:00+00:00" → "16:00"
     const timeStr = dateObj.toLocaleTimeString('es-AR', {
-      hour: '2-digit',
-      minute: '2-digit',
+      hour: '2-digit', minute: '2-digit',
     });
 
-    // Abreviatura del equipo: tomamos las primeras 3 letras en mayúscula
-    // Ejemplo: "Manchester City" → "MAN"
-    const getShort = (name: string) => name.slice(0, 3).toUpperCase();
+    // Abreviatura de 3 letras en mayúscula: "Manchester City" → "MAN"
+    const short = (name: string) => name.slice(0, 3).toUpperCase();
 
-    // Retornamos el objeto en el formato exacto de nuestra interfaz Match
     return {
-      id:            String(fixture.id),
-      league:        league.name,
-      leagueShort:   league.name.slice(0, 5),
-      date:          dateStr,
-      time:          status === 'live' ? 'En vivo' : timeStr,
-      homeTeam:      teams.home.name,
-      homeTeamShort: getShort(teams.home.name),
-      awayTeam:      teams.away.name,
-      awayTeamShort: getShort(teams.away.name),
+      id: String(fixture.id),
+      league: league.name,
+      leagueShort: league.name.slice(0, 5),
+      date: dateStr,
+      time: status === 'live' ? `${fixture.status.elapsed}'` : timeStr,
+      homeTeam: teams.home.name,
+      homeTeamShort: short(teams.home.name),
+      awayTeam: teams.away.name,
+      awayTeamShort: short(teams.away.name),
       status,
-      // Los goles son null en la API si el partido no empezó → los omitimos
-      homeScore:     goals.home ?? undefined,
-      awayScore:     goals.away ?? undefined,
-      minute:        fixture.status.elapsed ?? undefined,
+      homeScore: goals.home ?? undefined,
+      awayScore: goals.away ?? undefined,
+      minute: fixture.status.elapsed ?? undefined,
     };
   }
 
   /**
-   * clearCache() — Limpia la caché manualmente.
-   *
-   * Útil para forzar una recarga fresca desde la API.
-   * Podría llamarse desde un botón "Actualizar" en el Dashboard.
+   * clearCache() — Fuerza recarga fresca desde la API.
+   * Conectalo a un botón "Actualizar" en el Dashboard si querés.
    */
   clearCache(): void {
     this.cache.clear();
-    console.log('[FootballService] 🗑️ Caché limpiada');
+    console.log('[FootballService] 🗑️ Caché limpiada — próxima llamada hará HTTP');
   }
 }
