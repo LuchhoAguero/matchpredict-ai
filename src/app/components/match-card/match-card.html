@@ -133,34 +133,42 @@
       El padre entonces cambia isAnalysisOpen y Angular re-renderiza.
     -->
     <button
-      (click)="toggleAnalysis.emit()"
-      class="flex w-full items-center justify-center gap-2 border-t border-border/50 bg-primary/5 px-4 py-4 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+      (click)="requestAnalysis()"
+      [disabled]="isAnalyzing"
+      class="flex w-full items-center justify-center gap-2 border-t border-border/50 bg-primary/5 px-4 py-4 text-sm font-medium text-primary transition-colors hover:bg-primary/10 disabled:cursor-wait disabled:opacity-70"
       [attr.aria-expanded]="isAnalysisOpen"
       aria-label="Analizar partido con IA"
     >
-      <!-- Ícono Sparkles -->
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4"
-        viewBox="0 0 24 24" fill="none" stroke="currentColor"
-        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
-      </svg>
-      Analizar previa con IA
-
-      <!-- Flecha arriba/abajo según estado — @if con condición simple -->
-      @if (isAnalysisOpen) {
-        <!-- ChevronUp -->
-        <svg xmlns="http://www.w3.org/2000/svg" class="ml-1 h-4 w-4"
-          viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="18 15 12 9 6 15"/>
+      @if (isAnalyzing) {
+        <!-- Spinner animado mientras espera la respuesta del servicio -->
+        <svg class="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
         </svg>
+        Analizando...
       } @else {
-        <!-- ChevronDown -->
-        <svg xmlns="http://www.w3.org/2000/svg" class="ml-1 h-4 w-4"
-          viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="6 9 12 15 18 9"/>
-        </svg>
+        <!--
+          buttonLabel es un getter del .ts.
+          Devuelve texto diferente según el estado del partido:
+            upcoming / live → "✨ Analizar previa con IA"
+            finished        → "📊 Ver resumen táctico de la IA"
+        -->
+        {{ buttonLabel }}
+
+        <!-- Flecha arriba/abajo según estado -->
+        @if (isAnalysisOpen) {
+          <svg xmlns="http://www.w3.org/2000/svg" class="ml-1 h-4 w-4"
+            viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="18 15 12 9 6 15"/>
+          </svg>
+        } @else {
+          <svg xmlns="http://www.w3.org/2000/svg" class="ml-1 h-4 w-4"
+            viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        }
       }
     </button>
 
@@ -178,10 +186,14 @@
     <div class="overflow-hidden transition-all duration-300 ease-in-out"
       [style.max-height]="isAnalysisOpen ? '600px' : '0px'">
       <!--
-        <app-ai-analysis> usa el selector del AiAnalysisComponent.
-        [match]="match" le pasa el partido via @Input (property binding).
+        Pasamos [analysis] e [isAnalyzing] al hijo.
+        El hijo muestra un spinner si isAnalyzing=true y los datos cuando llegan.
       -->
-      <app-ai-analysis [match]="match" />
+      <app-ai-analysis
+        [match]="match"
+        [analysis]="analysis"
+        [isAnalyzing]="isAnalyzing"
+      />
     </div>
   </div>
 
