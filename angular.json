@@ -71,7 +71,8 @@
               "buildTarget": "matchpredict-ai:build:production"
             },
             "development": {
-              "buildTarget": "matchpredict-ai:build:development"
+              "buildTarget": "matchpredict-ai:build:development",
+              "proxyConfig": "proxy.conf.json"
             }
           },
           "defaultConfiguration": "development"
