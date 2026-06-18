@@ -26,10 +26,9 @@
   En cambio, usamos [class.ring-1] para el efecto visual cuando el análisis está abierto.
   Las clases hover se dejan como clases estáticas de Tailwind.
 -->
-<article class="group flex flex-col overflow-hidden rounded-xl border border-border bg-card/80 backdrop-blur-sm transition-all duration-300 hover:border-primary/30 hover:bg-card"
-  [class.border-primary]="isAnalysisOpen"
-  [class.ring-1]="isAnalysisOpen"
-  [class.ring-primary]="isAnalysisOpen">
+<article
+  class="group flex flex-col overflow-hidden rounded-xl border border-border bg-card/80 backdrop-blur-sm transition-all duration-300 hover:border-primary/30 hover:bg-card"
+  [class.border-primary]="isAnalysisOpen" [class.ring-1]="isAnalysisOpen" [class.ring-primary]="isAnalysisOpen">
 
   <!-- ─── Header de la tarjeta: Liga + Fecha ─────────────────────────────── -->
   <div class="flex flex-row items-center justify-between border-b border-border/50 px-4 py-3">
@@ -37,7 +36,8 @@
     <div class="flex items-center gap-2">
 
       <!-- Badge con el nombre corto de la liga -->
-      <span class="inline-flex items-center rounded-md bg-secondary/50 px-2 py-0.5 text-xs font-normal text-muted-foreground ring-1 ring-inset ring-border/50">
+      <span
+        class="inline-flex items-center rounded-md bg-secondary/50 px-2 py-0.5 text-xs font-normal text-muted-foreground ring-1 ring-inset ring-border/50">
         {{ match.leagueShort }}
       </span>
 
@@ -47,11 +47,12 @@
         Solo renderiza este elemento si el partido está en vivo
       -->
       @if (isLive) {
-        <span class="inline-flex items-center gap-1.5 rounded-md border border-red-500/30 bg-red-500/20 px-2 py-0.5 text-xs font-medium text-red-400">
-          <!-- Punto pulsante de "en vivo" -->
-          <span class="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-red-500"></span>
-          {{ match.minute }}'
-        </span>
+      <span
+        class="inline-flex items-center gap-1.5 rounded-md border border-red-500/30 bg-red-500/20 px-2 py-0.5 text-xs font-medium text-red-400">
+        <!-- Punto pulsante de "en vivo" -->
+        <span class="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-red-500"></span>
+        {{ match.minute }}'
+      </span>
       }
     </div>
 
@@ -84,30 +85,30 @@
           Si no, muestra la hora del partido.
         -->
         @if (hasScore) {
-          <!-- Marcador numérico -->
-          <div class="flex items-center gap-2">
-            <span class="text-3xl font-bold tabular-nums text-foreground">
-              {{ match.homeScore }}
-            </span>
-            <span class="text-xl text-muted-foreground">-</span>
-            <span class="text-3xl font-bold tabular-nums text-foreground">
-              {{ match.awayScore }}
-            </span>
-          </div>
+        <!-- Marcador numérico -->
+        <div class="flex items-center gap-2">
+          <span class="text-3xl font-bold tabular-nums text-foreground">
+            {{ match.homeScore }}
+          </span>
+          <span class="text-xl text-muted-foreground">-</span>
+          <span class="text-3xl font-bold tabular-nums text-foreground">
+            {{ match.awayScore }}
+          </span>
+        </div>
 
-          <!-- Badge "Finalizado" — solo aparece si el partido terminó -->
-          @if (isFinished) {
-            <span class="inline-flex items-center rounded-md bg-secondary/50 px-2 py-0.5 text-[10px] text-muted-foreground">
-              Finalizado
-            </span>
-          }
+        <!-- Badge "Finalizado" — solo aparece si el partido terminó -->
+        @if (isFinished) {
+        <span class="inline-flex items-center rounded-md bg-secondary/50 px-2 py-0.5 text-[10px] text-muted-foreground">
+          Finalizado
+        </span>
+        }
 
         } @else {
-          <!-- Si es "upcoming": muestra hora y fecha en lugar del marcador -->
-          <div class="flex flex-col items-center">
-            <span class="text-2xl font-bold text-foreground">{{ match.time }}</span>
-            <span class="text-xs text-muted-foreground">{{ match.date }}</span>
-          </div>
+        <!-- Si es "upcoming": muestra hora y fecha en lugar del marcador -->
+        <div class="flex flex-col items-center">
+          <span class="text-2xl font-bold text-foreground">{{ match.time }}</span>
+          <span class="text-xs text-muted-foreground">{{ match.date }}</span>
+        </div>
         }
       </div>
 
@@ -132,43 +133,37 @@
       lo que llama al método onToggleAnalysis() en el Dashboard (el padre).
       El padre entonces cambia isAnalysisOpen y Angular re-renderiza.
     -->
-    <button
-      (click)="requestAnalysis()"
-      [disabled]="isAnalyzing"
+    <button (click)="requestAnalysis()" [disabled]="isAnalyzing"
       class="flex w-full items-center justify-center gap-2 border-t border-border/50 bg-primary/5 px-4 py-4 text-sm font-medium text-primary transition-colors hover:bg-primary/10 disabled:cursor-wait disabled:opacity-70"
-      [attr.aria-expanded]="isAnalysisOpen"
-      aria-label="Analizar partido con IA"
-    >
+      [attr.aria-expanded]="isAnalysisOpen" aria-label="Analizar partido con IA">
       @if (isAnalyzing) {
-        <!-- Spinner animado mientras espera la respuesta del servicio -->
-        <svg class="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-        </svg>
-        Analizando...
+      <!-- Spinner animado mientras espera la respuesta del servicio -->
+      <svg class="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+      </svg>
+      Analizando...
       } @else {
-        <!--
+      <!--
           buttonLabel es un getter del .ts.
           Devuelve texto diferente según el estado del partido:
-            upcoming / live → "✨ Analizar previa con IA"
-            finished        → "📊 Ver resumen táctico de la IA"
+            upcoming / live → " Analizar previa con IA"
+            finished        → " Ver resumen táctico de la IA"
         -->
-        {{ buttonLabel }}
+      {{ buttonLabel }}
 
-        <!-- Flecha arriba/abajo según estado -->
-        @if (isAnalysisOpen) {
-          <svg xmlns="http://www.w3.org/2000/svg" class="ml-1 h-4 w-4"
-            viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="18 15 12 9 6 15"/>
-          </svg>
-        } @else {
-          <svg xmlns="http://www.w3.org/2000/svg" class="ml-1 h-4 w-4"
-            viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="6 9 12 15 18 9"/>
-          </svg>
-        }
+      <!-- Flecha arriba/abajo según estado -->
+      @if (isAnalysisOpen) {
+      <svg xmlns="http://www.w3.org/2000/svg" class="ml-1 h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="18 15 12 9 6 15" />
+      </svg>
+      } @else {
+      <svg xmlns="http://www.w3.org/2000/svg" class="ml-1 h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="6 9 12 15 18 9" />
+      </svg>
+      }
       }
     </button>
 
@@ -189,11 +184,7 @@
         Pasamos [analysis] e [isAnalyzing] al hijo.
         El hijo muestra un spinner si isAnalyzing=true y los datos cuando llegan.
       -->
-      <app-ai-analysis
-        [match]="match"
-        [analysis]="analysis"
-        [isAnalyzing]="isAnalyzing"
-      />
+      <app-ai-analysis [match]="match" [analysis]="analysis" [isAnalyzing]="isAnalyzing" />
     </div>
   </div>
 

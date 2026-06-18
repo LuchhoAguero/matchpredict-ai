@@ -28,5 +28,7 @@ export const environment = {
   apiFootballHost: 'v3.football.api-sports.io',
 
   // URL base para las peticiones HTTP
-  apiFootballUrl: 'https://v3.football.api-sports.io',
+  // En desarrollo usamos el proxy de Angular (proxy.conf.json) para evitar CORS.
+  // El proxy redirige /api-football → https://v3.football.api-sports.io
+  apiFootballUrl: '/api-football',
 };
