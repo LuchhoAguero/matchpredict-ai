@@ -2,7 +2,7 @@
  * SERVICIO: FootballService
  * ARCHIVO: football.service.ts
  * ─────────────────────────────────────────────────────────────────────────────
- * Responsabilidad única: hablar con la API de api-sports.io y devolver
+ * Responsabilidad única: hablar con el proxy de fútbol y devolver
  * datos ya transformados al formato Match[] que usan los componentes.
  *
  * ARQUITECTURA NUEVA — forkJoin en paralelo:
@@ -34,7 +34,7 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Observable, of, forkJoin } from 'rxjs';
 import { map, catchError, tap } from 'rxjs/operators';
 
@@ -167,18 +167,6 @@ export class FootballService {
   /** Clave de caché fija para el conjunto de todas las ligas */
   private readonly CACHE_KEY = 'all-leagues';
 
-  /**
-   * GETTER: apiHeaders
-   * Construye los HttpHeaders con la API Key del environment.
-   * 'x-apisports-key' es el header requerido por api-sports.io directo
-   * (distinto de RapidAPI que usa 'x-rapidapi-key').
-   */
-  private get apiHeaders(): HttpHeaders {
-    return new HttpHeaders({
-      'x-apisports-key': environment.apiFootballKey,
-    });
-  }
-
   // ──────────────────────────────────────────────────────────────────────────
   // MÉTODO PRINCIPAL
   // ──────────────────────────────────────────────────────────────────────────
@@ -201,7 +189,7 @@ export class FootballService {
 
     // ── OBSERVABLES DE FECHA (últimos 5 días) — captura el Mundial ───────────
     /**
-     * El free tier de api-sports.io NO permite consultar el Mundial por
+     * El proxy consulta el endpoint de fixtures por fecha para traer partidos por día.
      * ?league=1&season=2026. SÍ permite consultar por ?date=YYYY-MM-DD.
      *
      * Problema: el endpoint de fecha solo devuelve UNA jornada.
@@ -346,15 +334,16 @@ export class FootballService {
     const isToday = dateStr === new Date().toISOString().split('T')[0];
     console.log(`[FootballService] 📅 GET ${isToday ? 'HOY' : dateStr}: ${url}`);
 
-    return this.http.get<ApiResponse>(url, { headers: this.apiHeaders }).pipe(
+    return this.http.get<ApiResponse>(url).pipe(
       map((apiResponse: ApiResponse) => {
-        const topMatches = apiResponse.response.filter(
+        const apiMatches = this.extractApiMatches(apiResponse);
+        const topMatches = apiMatches.filter(
           (m) => TOP_LEAGUE_IDS.includes(m.league.id)
         );
         const leagues = [...new Set(topMatches.map(m => m.league.name))].join(', ');
         console.log(
           `[FootballService] 🏆 ${dateStr}: ${topMatches.length} partidos top ` +
-          `(de ${apiResponse.response.length} totales)` +
+          `(de ${apiMatches.length} totales)` +
           (leagues ? ` — ${leagues}` : '')
         );
         return topMatches.map((m) => this.mapApiMatchToMatch(m));
@@ -371,7 +360,7 @@ export class FootballService {
    * fetchLeagueMatches() — Hace UNA petición HTTP para una liga específica
    * y recorta los resultados a los últimos N finalizados + próximos N.
    *
-   * @param leagueId  ID de la liga en api-sports.io
+   * @param leagueId  ID de la liga en la API de fútbol
    * @param season    Temporada (ej: 2024, 2025, 2026)
    * @param label     Nombre legible (solo para logs)
    * @returns Observable<Match[]> con máximo FINISHED_PER_LEAGUE + UPCOMING_PER_LEAGUE partidos
@@ -384,10 +373,10 @@ export class FootballService {
     const url = `${environment.apiFootballUrl}/fixtures?league=${leagueId}&season=${season}`;
     console.log(`[FootballService] 🔗 GET ${label}: ${url}`);
 
-    return this.http.get<ApiResponse>(url, { headers: this.apiHeaders }).pipe(
+    return this.http.get<ApiResponse>(url).pipe(
 
       map((apiResponse: ApiResponse) => {
-        const rawMatches = apiResponse.response;
+        const rawMatches = this.extractApiMatches(apiResponse);
 
         // ── SEPARAR POR STATUS ──────────────────────────────────────────────
         /**
@@ -462,6 +451,18 @@ export class FootballService {
         return of([]);
       })
     );
+  }
+
+  private extractApiMatches(apiResponse: ApiResponse | ApiMatch[] | null | undefined): ApiMatch[] {
+    if (Array.isArray(apiResponse)) {
+      return apiResponse;
+    }
+
+    if (Array.isArray(apiResponse?.response)) {
+      return apiResponse.response;
+    }
+
+    return [];
   }
 
   // ──────────────────────────────────────────────────────────────────────────
