@@ -1,5 +1,9 @@
 # MatchpredictAi
+## Descripción del proyecto
 
+MatchPredict AI es una aplicación web desarrollada con Angular que permite visualizar partidos de fútbol, consultar estadísticas y explorar predicciones generadas con ayuda de inteligencia artificial.
+
+El objetivo del proyecto es ofrecer una interfaz simple para comparar equipos, revisar encuentros próximos, partidos en vivo y resultados finalizados, usando datos simulados durante la etapa de desarrollo.
 This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.9.
 
 ## Development server
