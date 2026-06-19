@@ -36,7 +36,8 @@
  *       ▼
  *   @for (match of filteredMatches) → app-match-card
  */
-import { Component, OnInit, inject } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
+import { Component, OnInit, PLATFORM_ID, inject } from '@angular/core';
 import { Match } from '../../models/match.model';
 import { FilterBarComponent } from '../filter-bar/filter-bar';
 import { MatchCardComponent } from '../match-card/match-card';
@@ -70,6 +71,7 @@ export class DashboardComponent implements OnInit {
    * el mismo objeto con la misma caché para toda la app.
    */
   private footballService = inject(FootballService);
+  private platformId = inject(PLATFORM_ID);
 
   /** ─── Estado de Carga ─────────────────────────────────────────────────── */
 
@@ -78,7 +80,7 @@ export class DashboardComponent implements OnInit {
    * Empieza en true → mostramos indicador de carga.
    * Cuando llegan los datos → lo ponemos en false → mostramos las tarjetas.
    */
-  isLoading: boolean = true;
+  isLoading: boolean = false;
 
   /**
    * hasError: true si la petición HTTP falló (ej: API Key incorrecta,
@@ -142,6 +144,14 @@ export class DashboardComponent implements OnInit {
    *   complete: se llama cuando el Observable termina (no siempre necesario)
    */
   ngOnInit(): void {
+    if (!isPlatformBrowser(this.platformId)) {
+      return;
+    }
+
+    setTimeout(() => this.loadMatches());
+  }
+
+  private loadMatches(): void {
     this.isLoading = true;
     this.hasError  = false;
 
