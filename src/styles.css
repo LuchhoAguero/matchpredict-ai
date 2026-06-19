@@ -1,3 +1,68 @@
+/*
+ * ARCHIVO: styles.css — Estilos Globales de MatchPredict AI
+ *
+ * Las tres directivas @tailwind son OBLIGATORIAS: le dicen a Tailwind
+ * dónde inyectar sus estilos base, componentes y utilidades.
+ *
+ * Debajo definimos las variables CSS personalizadas que corresponden
+ * a los colores que usamos en tailwind.config.js.
+ *
+ * IMPORTANTE: los valores son en formato "H S% L%" (sin hsl())
+ * porque Tailwind necesita insertar el canal de opacidad por su cuenta.
+ * Ejemplo: bg-primary/10 se transforma en hsl(160 84% 39% / 0.1)
+ */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ─── Variables del Tema Oscuro ──────────────────────────────────────────── */
+:root {
+  /* Fondo general: negro azulado muy oscuro */
+  --background: 222 47% 5%;
+
+  /* Texto principal: blanco casi puro */
+  --foreground: 210 40% 98%;
+
+  /* Color primario: verde esmeralda (identidad visual del fútbol) */
+  --primary: 160 84% 39%;
+  --primary-foreground: 355 100% 97%;
+
+  /* Secundario: gris azulado oscuro */
+  --secondary: 217 33% 17%;
+  --secondary-foreground: 210 40% 98%;
+
+  /* Atenuado: para textos de menor jerarquía */
+  --muted: 217 33% 17%;
+  --muted-foreground: 215 20% 65%;
+
+  /* Bordes sutiles */
+  --border: 217 33% 20%;
+
+  /* Destructivo: rojo oscuro (para acciones peligrosas como "logout") */
+  --destructive: 0 63% 50%;
+  --destructive-foreground: 210 40% 98%;
+
+  /* Superficie de tarjetas — un tono más claro que el fondo general */
+  --card: 215 40% 10%;
+  --card-foreground: 210 40% 98%;
+}
+
+/* ─── Estilos Base de la App ─────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  /* Aplicamos el color de fondo y texto del tema */
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  /* Fuente moderna de Google Fonts — se carga en index.html */
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}

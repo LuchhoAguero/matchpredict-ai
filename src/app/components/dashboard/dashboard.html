@@ -1,0 +1,185 @@
+<!--
+  TEMPLATE: dashboard.html
+  Corresponde a DashboardComponent (selector: app-dashboard)
+
+  FLUJO DE RENDERIZADO:
+  ────────────────────────────────────────────────────────────────────────
+  1. ngOnInit() activa → isLoading = true → mostramos skeleton de carga
+  2. FootballService responde → isLoading = false → hasError = false/true
+  3. Si hasError → mostramos panel de error
+  4. Si ok → @for sobre filteredMatches → app-match-card × N
+             @empty → mensaje "sin resultados" (nueva sintaxis Angular 17+)
+  ────────────────────────────────────────────────────────────────────────
+
+  BINDINGS USADOS:
+    [prop]="valor"        → property binding: pasa datos del padre al hijo (@Input)
+    (evento)="handler()"  → event binding: escucha eventos del hijo (@Output)
+    @if / @else           → control de flujo condicional (nueva sintaxis Angular 17+)
+    @for / @empty         → bucle + caso vacío (nueva sintaxis Angular 17+)
+-->
+
+<!-- Contenedor principal de la vista del Dashboard -->
+<section>
+
+  <!-- ─── Barra de Filtros ─────────────────────────────────────────────── -->
+  <!--
+    app-filter-bar es un componente "controlado": no guarda su propio estado.
+    El Dashboard le ENVÍA los valores actuales [searchQuery], [competition], [status]
+    y ESCUCHA cuando el usuario los cambia via (searchChanged), etc.
+
+    Esto garantiza que el Dashboard sea la "única fuente de verdad" del estado.
+  -->
+  <app-filter-bar
+    [searchQuery]="searchQuery"
+    [competition]="competition"
+    [status]="status"
+    (searchChanged)="onSearchChange($event)"
+    (competitionChanged)="onCompetitionChange($event)"
+    (statusChanged)="onStatusChange($event)"
+  />
+
+  <!-- ─── Área de Partidos ─────────────────────────────────────────────── -->
+  <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    <!-- ESTADO 1: CARGANDO — isLoading = true                            -->
+    <!-- Mostramos un skeleton (tarjetas grises animadas) mientras la API  -->
+    <!-- responde. Mucho mejor que una pantalla en blanco.                 -->
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    @if (isLoading) {
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <!--
+          @for sobre un array de 6 elementos vacíos → 6 tarjetas skeleton.
+          track $index: usamos el índice porque los elementos no tienen ID.
+          $index es una variable implícita de @for que da la posición actual.
+        -->
+        @for (item of [1,2,3,4,5,6]; track $index) {
+          <div class="animate-pulse rounded-2xl border border-white/10 bg-white/5 p-5">
+            <!-- Línea de liga -->
+            <div class="mb-4 h-3 w-24 rounded-full bg-white/10"></div>
+            <!-- Nombres de equipos -->
+            <div class="flex items-center justify-between">
+              <div class="h-5 w-28 rounded-full bg-white/10"></div>
+              <div class="h-7 w-12 rounded-lg bg-white/10"></div>
+              <div class="h-5 w-28 rounded-full bg-white/10"></div>
+            </div>
+            <!-- Botón de IA -->
+            <div class="mt-4 h-8 w-full rounded-xl bg-white/10"></div>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    <!-- ESTADO 2: ERROR — hasError = true                                 -->
+    <!-- La API no respondió, o el límite de peticiones fue alcanzado.     -->
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    @else if (hasError) {
+      <div class="flex flex-col items-center justify-center py-20 text-center">
+        <div class="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-red-500/10">
+          <span class="text-4xl">⚠️</span>
+        </div>
+        <h3 class="text-xl font-semibold text-foreground">Error al cargar partidos</h3>
+        <p class="mt-2 max-w-sm text-sm text-muted-foreground">
+          No se pudo conectar con la API. Verificá tu API Key en
+          <code class="rounded bg-white/10 px-1 py-0.5 text-xs text-amber-400">
+            environment.development.ts
+          </code>
+          o que no hayas alcanzado el límite de 50 peticiones diarias.
+        </p>
+      </div>
+    }
+
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    <!-- ESTADO 3: DATOS LISTOS — isLoading = false, hasError = false     -->
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    @else {
+
+      <!-- Encabezado con contador dinámico de resultados -->
+      <!--
+        filteredMatches.length se recalcula automáticamente cada vez que
+        el usuario cambia un filtro, porque filteredMatches es un getter.
+        Angular detecta el cambio y actualiza el DOM en el siguiente ciclo.
+      -->
+      <div class="mb-4 flex items-center justify-between">
+        <h2 class="text-sm font-medium text-muted-foreground">
+          {{ filteredMatches.length }}
+          {{ filteredMatches.length === 1 ? 'partido encontrado' : 'partidos encontrados' }}
+        </h2>
+      </div>
+
+      <!--
+        GRILLA PRINCIPAL CON @for
+
+        @for (match of filteredMatches; track match.id) { ... }
+          │              │                    │
+          │              │                    └─ track: clave única para optimizar el DOM.
+          │              │                       Angular usa esto para reusar elementos
+          │              │                       en vez de destruirlos y recrearlos.
+          │              └─ array calculado por el getter filteredMatches del .ts
+          └─ variable local "match" disponible dentro del bloque { }
+
+        @empty { ... }
+          → Bloque especial de Angular 17+: se renderiza automáticamente
+            cuando el array filteredMatches está vacío (length === 0).
+            Evita necesitar un @if separado para el estado vacío.
+      -->
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+
+        @for (match of filteredMatches; track match.id) {
+
+          <!--
+            app-match-card: componente hijo que renderiza la tarjeta de UN partido.
+
+            [match]="match"
+              → Property binding: le pasamos el objeto Match completo del partido actual.
+                Cada iteración del @for tiene su propio "match" con datos diferentes.
+
+            [isAnalysisOpen]="openAnalysisId === match.id"
+              → La expresión se evalúa para CADA tarjeta en el loop.
+                Solo la tarjeta cuyo ID coincide con openAnalysisId recibe true.
+                Las demás reciben false → su panel de IA está cerrado.
+
+            (toggleAnalysis)="onToggleAnalysis(match.id)"
+              → Event binding: escucha el @Output del hijo.
+                Cuando el usuario clickea "Analizar con IA" en una tarjeta,
+                MatchCard emite toggleAnalysis (sin datos).
+                El Dashboard recibe el evento Y sabe qué tarjeta fue porque
+                pasamos match.id como argumento del manejador.
+          -->
+          <app-match-card
+            [match]="match"
+            [isAnalysisOpen]="openAnalysisId === match.id"
+            (toggleAnalysis)="onToggleAnalysis(match.id)"
+          />
+
+        }
+
+        <!--
+          @empty — Se muestra cuando filteredMatches.length === 0.
+
+          Casos en que esto ocurre:
+            - El usuario buscó un equipo que no existe en los datos
+            - El usuario seleccionó una liga sin partidos en el tab activo
+            - Los datos de la API no devolvieron partidos para los filtros actuales
+        -->
+        @empty {
+          <div class="col-span-full flex flex-col items-center justify-center py-16 text-center">
+            <div class="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-secondary/50">
+              <span class="text-2xl">🔍</span>
+            </div>
+            <h3 class="text-lg font-semibold text-foreground">
+              Sin resultados para esta búsqueda
+            </h3>
+            <p class="mt-1 max-w-xs text-sm text-muted-foreground">
+              Probá con otro nombre de equipo, elegí "Todas las Competiciones"
+              o cambiá el tab de estado.
+            </p>
+          </div>
+        }
+
+      </div>
+    }
+
+  </div>
+</section>

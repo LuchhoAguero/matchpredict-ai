@@ -1,0 +1,219 @@
+<!--
+  TEMPLATE: ai-analysis.html
+  Corresponde a AiAnalysisComponent (selector: app-ai-analysis)
+
+  TRES ESTADOS DEL PANEL:
+  ┌────────────────────────────────────────────────────────────────────────────┐
+  │ 1. isAnalyzing = true  → muestra spinner "Procesando con IA..."           │
+  │ 2. analysis != null    → muestra el análisis completo de GeminiAnalysis   │
+  │ 3. ninguno             → panel vacío (no debería ocurrir en flujo normal) │
+  └────────────────────────────────────────────────────────────────────────────┘
+
+  CAMBIOS vs versión anterior:
+  - analysis.summary        → analysis.conclusion
+  - analysis.homeWinProb    → analysis.probabilities.home
+  - analysis.drawProb       → analysis.probabilities.draw
+  - analysis.awayWinProb    → analysis.probabilities.away
+  - insights[].text         → insights[] (strings directos, sin objeto icon)
+  - analysis.confidence     → confidenceScore (getter numérico 1-5)
+  - confidenceLabel         → analysis.confidenceLevel (string directo)
+  - analysis.favorite       → eliminado (simplificado)
+-->
+
+<div class="relative border-t border-primary/20 bg-gradient-to-b from-primary/5 via-background to-background">
+
+  <!-- Efecto de borde brillante -->
+  <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent"></div>
+
+  <div class="space-y-4 p-4">
+
+    <!-- ─── Encabezado siempre visible ──────────────────────────────────── -->
+    <div class="flex items-center gap-2">
+      <div class="flex h-6 w-6 items-center justify-center rounded-md bg-primary/20">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-primary"
+          viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+        </svg>
+      </div>
+      <h4 class="text-sm font-semibold text-foreground">Análisis de MatchPredict</h4>
+      <span class="ml-auto inline-flex items-center rounded-full border border-primary/30 px-2 py-0.5 text-[10px] text-primary">
+        Powered by AI
+      </span>
+    </div>
+
+    <!-- ─── ESTADO 1: Cargando (isAnalyzing = true) ──────────────────────── -->
+    <!--
+      @if (isAnalyzing) muestra el spinner mientras el MockGeminiService
+      espera los 1500ms del delay(). Es la señal visual de "estoy pensando".
+    -->
+    @if (isAnalyzing) {
+      <div class="flex flex-col items-center gap-3 py-6">
+        <!-- Spinner CSS puro (Tailwind animate-spin) -->
+        <svg class="h-8 w-8 animate-spin text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+        </svg>
+        <p class="text-xs text-muted-foreground">Procesando con IA...</p>
+      </div>
+
+    <!-- ─── ESTADO 2: Análisis listo ─────────────────────────────────────── -->
+    <!--
+      @else if (analysis) — solo se renderiza cuando el Observable del servicio
+      emitió el valor y lo guardamos en this.analysis.
+    -->
+    } @else if (analysis) {
+
+      <!-- Conclusión general -->
+      <p class="text-sm leading-relaxed text-muted-foreground">
+        {{ analysis.conclusion }}
+      </p>
+
+      <div class="h-px bg-border/50"></div>
+
+      <!-- ─── Sección condicional: Probabilidades vs Métricas ───────────── -->
+      <!--
+        analysis.type bifurca qué información mostramos:
+          'pre-match'  → probabilidades de victoria (el partido no se jugó)
+          'post-match' → métricas de rendimiento (posesión y tiros del partido real)
+      -->
+      @if (analysis.type === 'post-match' && analysis.metrics) {
+
+        <!-- ── MÉTRICAS POST-PARTIDO ──────────────────────────────────────── -->
+        <div class="space-y-1">
+          <h5 class="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Métricas del Partido
+          </h5>
+
+          <!-- Posesión: barra de progreso dividida -->
+          <div class="space-y-1">
+            <div class="flex justify-between text-[10px] text-muted-foreground">
+              <span>{{ match.homeTeamShort }} {{ analysis.metrics.posesionLocal }}%</span>
+              <span>Posesión</span>
+              <span>{{ analysis.metrics.posesionVisitante }}% {{ match.awayTeamShort }}</span>
+            </div>
+            <div class="flex h-2 w-full overflow-hidden rounded-full bg-secondary/40">
+              <div class="bg-primary transition-all"
+                [style.width.%]="analysis.metrics.posesionLocal">
+              </div>
+              <div class="bg-muted-foreground/40 transition-all"
+                [style.width.%]="analysis.metrics.posesionVisitante">
+              </div>
+            </div>
+          </div>
+
+          <!-- Tiros al arco -->
+          <div class="mt-3 grid grid-cols-3 gap-2">
+            <div class="flex flex-col items-center gap-0.5 rounded-lg bg-secondary/30 p-2">
+              <span class="text-[10px] uppercase tracking-wider text-muted-foreground">Tiros</span>
+              <span class="text-lg font-bold text-foreground">{{ analysis.metrics.tirosLocal }}</span>
+              <span class="text-[9px] text-muted-foreground">{{ match.homeTeamShort }}</span>
+            </div>
+            <div class="flex flex-col items-center gap-0.5 rounded-lg bg-secondary/30 p-2">
+              <span class="text-[10px] uppercase tracking-wider text-muted-foreground">Total</span>
+              <span class="text-lg font-bold text-foreground">
+                {{ analysis.metrics.tirosLocal + analysis.metrics.tirosVisitante }}
+              </span>
+              <span class="text-[9px] text-muted-foreground">remates</span>
+            </div>
+            <div class="flex flex-col items-center gap-0.5 rounded-lg bg-secondary/30 p-2">
+              <span class="text-[10px] uppercase tracking-wider text-muted-foreground">Tiros</span>
+              <span class="text-lg font-bold text-foreground">{{ analysis.metrics.tirosVisitante }}</span>
+              <span class="text-[9px] text-muted-foreground">{{ match.awayTeamShort }}</span>
+            </div>
+          </div>
+        </div>
+
+      } @else if (analysis.probabilities) {
+
+        <!-- ── PROBABILIDADES PRE-PARTIDO ─────────────────────────────────── -->
+        <div class="grid grid-cols-3 gap-3">
+          <div class="flex flex-col items-center gap-1 rounded-lg bg-secondary/30 p-3">
+            <span class="text-[10px] uppercase tracking-wider text-muted-foreground">
+              {{ match.homeTeamShort }}
+            </span>
+            <span class="text-lg font-bold text-foreground">{{ analysis.probabilities.home }}%</span>
+          </div>
+          <div class="flex flex-col items-center gap-1 rounded-lg bg-secondary/30 p-3">
+            <span class="text-[10px] uppercase tracking-wider text-muted-foreground">Empate</span>
+            <span class="text-lg font-bold text-foreground">{{ analysis.probabilities.draw }}%</span>
+          </div>
+          <div class="flex flex-col items-center gap-1 rounded-lg bg-secondary/30 p-3">
+            <span class="text-[10px] uppercase tracking-wider text-muted-foreground">
+              {{ match.awayTeamShort }}
+            </span>
+            <span class="text-lg font-bold text-foreground">{{ analysis.probabilities.away }}%</span>
+          </div>
+        </div>
+
+      }
+
+      <!-- ─── Insights Clave ─────────────────────────────────────────────── -->
+      <!--
+        analysis.insights es un string[] (array de textos simples).
+        @for itera sobre cada string directamente — sin objeto {icon, text}.
+        Todos los insights usan el mismo ícono de tendencia (simplificado).
+      -->
+      <div class="space-y-2">
+        <h5 class="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Insights Clave
+        </h5>
+        <div class="space-y-2">
+          @for (insight of analysis.insights; track $index) {
+            <div class="flex items-start gap-2 rounded-md bg-secondary/20 p-2">
+              <!-- Ícono TrendingUp para todos los insights -->
+              <svg xmlns="http://www.w3.org/2000/svg" class="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m22 7-8.5 8.5-5-5L2 17"/>
+                <polyline points="16 7 22 7 22 13"/>
+              </svg>
+              <!-- El insight es un string directo — sin .text -->
+              <span class="text-xs text-muted-foreground">{{ insight }}</span>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- ─── Indicador de Confianza ─────────────────────────────────────── -->
+      <!--
+        confidenceScore es un getter del .ts que convierte
+        analysis.confidenceLevel ('Alto'|'Medio'|'Bajo') → número 1-5.
+        Las barras se llenan según ese número.
+      -->
+      <div class="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/10 p-3">
+        <div class="flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-primary"
+            viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <circle cx="12" cy="12" r="6"/>
+            <circle cx="12" cy="12" r="2"/>
+          </svg>
+          <span class="text-xs font-medium text-foreground">Nivel de Confianza</span>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <div class="flex gap-0.5">
+            @for (level of confidenceLevels; track level) {
+              <div class="h-2 w-4 rounded-sm transition-colors"
+                [class.bg-primary]="level <= confidenceScore"
+                [class.bg-secondary]="level > confidenceScore">
+              </div>
+            }
+          </div>
+          <!--
+            analysis.confidenceLevel es el string directo del servicio.
+            No necesitamos getter de conversión — lo mostramos tal cual.
+          -->
+          <span class="inline-flex items-center rounded-full bg-primary/20 px-2 py-0.5 text-[10px] font-medium text-primary">
+            {{ analysis.confidenceLevel }}
+          </span>
+        </div>
+      </div>
+
+    } <!-- fin @else if (analysis) -->
+
+  </div>
+</div>
+

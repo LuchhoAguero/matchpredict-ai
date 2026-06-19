@@ -1,0 +1,11 @@
+{
+  "/api-football": {
+    "target": "https://v3.football.api-sports.io",
+    "secure": true,
+    "changeOrigin": true,
+    "pathRewrite": {
+      "^/api-football": ""
+    },
+    "logLevel": "debug"
+  }
+}

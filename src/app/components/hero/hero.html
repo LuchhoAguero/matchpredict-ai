@@ -1,0 +1,187 @@
+<!--
+  TEMPLATE: hero.html
+  Corresponde a HeroComponent (selector: app-hero)
+
+  TRADUCCIONES CLAVE de React → Angular:
+  ┌───────────────────────────────────────┬───────────────────────────────────────┐
+  │ React/Next.js (original)              │ Angular (este archivo)                │
+  ├───────────────────────────────────────┼───────────────────────────────────────┤
+  │ onClick={goToDashboard}               │ (click)="goToDashboard()"             │
+  │ onClick={handleLearnMore}             │ (click)="scrollDown()"                │
+  │ style={{ backgroundImage: "url(…)" }} │ [style.background-image]="…"          │
+  │ <Sparkles> (lucide-react)             │ SVG inline                            │
+  │ <ChevronDown> (lucide-react)          │ SVG inline                            │
+  │ <Badge>, <Button> (shadcn)            │ HTML + clases Tailwind directas       │
+  └───────────────────────────────────────┴───────────────────────────────────────┘
+
+  NOTA sobre el fondo:
+  El original usaba backgroundImage: "url('/hero-bg.png')".
+  Para que funcione sin imagen, usamos un gradiente CSS rico que
+  evoca el ambiente de un estadio de fútbol nocturno.
+  Si tenés la imagen, podés añadirla a /public/hero-bg.png y
+  descomentar la línea del background-image.
+-->
+
+<section class="relative flex min-h-screen items-center overflow-hidden">
+
+  <!-- ─── Fondo: Gradiente de estadio nocturno ──────────────────────────── -->
+  <!--
+    En vez de una imagen (que requeriría el archivo),
+    usamos capas de gradientes para crear la atmósfera oscura con
+    toque verde (los colores del césped y los focos del estadio).
+  -->
+  <div class="absolute inset-0"
+    style="background: radial-gradient(ellipse at 70% 50%, rgba(6, 78, 59, 0.4) 0%, transparent 60%),
+                       radial-gradient(ellipse at 30% 80%, rgba(4, 120, 87, 0.15) 0%, transparent 50%),
+                       linear-gradient(135deg, #020810 0%, #030f1a 40%, #041a12 100%);">
+  </div>
+
+  <!-- ─── Overlay: patrón de puntos sutil (decorativo) ─────────────────── -->
+  <div class="absolute inset-0 opacity-10"
+    style="background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0);
+           background-size: 40px 40px;">
+  </div>
+
+  <!-- ─── Contenido principal ───────────────────────────────────────────── -->
+  <div class="relative z-10 mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+    <div class="grid gap-8 lg:grid-cols-2 lg:gap-16">
+
+      <!-- ─── Columna izquierda: Texto y CTAs ──────────────────────────── -->
+      <div class="flex flex-col justify-center text-center lg:text-left">
+
+        <!-- Badge "Impulsado por Gemini AI" -->
+        <!--
+          El componente <Badge> de shadcn es simplemente un <span> estilizado.
+          Aquí lo reemplazamos con un <span> y clases Tailwind equivalentes.
+        -->
+        <div class="mb-6 flex justify-center lg:justify-start">
+          <span class="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-medium text-primary backdrop-blur-sm">
+            <!-- Ícono Sparkles (destellos) -->
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4"
+              viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+            </svg>
+            Impulsado por Gemini AI
+          </span>
+        </div>
+
+        <!-- Título principal -->
+        <!--
+          font-[Inter_Tight] aplica la fuente "Inter Tight" que cargamos en index.html.
+          bg-clip-text + text-transparent crea el efecto de gradiente en el texto.
+        -->
+        <h1 class="mb-6 font-['Inter_Tight'] text-5xl font-bold italic leading-tight tracking-tight text-foreground sm:text-6xl md:text-7xl lg:text-8xl">
+          <span>ANTICIPA</span>
+          <br>
+          <span class="bg-gradient-to-r from-primary to-emerald-400 bg-clip-text text-transparent">
+            EL PARTIDO
+          </span>
+        </h1>
+
+        <!-- Descripción -->
+        <p class="mx-auto mb-8 max-w-xl text-lg leading-relaxed text-muted-foreground sm:text-xl lg:mx-0">
+          La primera plataforma de estadísticas que cruza datos de las
+          mejores ligas del mundo con Inteligencia Artificial para analizar
+          qué equipo llega mejor al próximo encuentro.
+        </p>
+
+        <!-- ─── Botones de Acción ──────────────────────────────────────── -->
+        <div class="flex flex-col justify-center gap-4 sm:flex-row lg:justify-start">
+
+          <!--
+            Botón primario: navega al dashboard.
+            (click)="goToDashboard()" llama al método definido en hero.ts.
+          -->
+          <button
+            id="btn-start-analysis"
+            (click)="scrollToMatches()"
+            class="inline-flex items-center justify-center rounded-lg bg-primary px-8 py-4 text-lg font-semibold text-primary-foreground transition-all hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/25 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background"
+          >
+            Empezar Análisis
+          </button>
+
+          <!--
+            Botón secundario: hace scroll suave.
+            (click)="scrollDown()" llama al método en hero.ts.
+          -->
+          <button
+            id="btn-learn-more"
+            (click)="scrollDown()"
+            class="inline-flex items-center justify-center rounded-lg border border-foreground/20 bg-transparent px-8 py-4 text-lg font-semibold text-foreground backdrop-blur-sm transition-all hover:border-foreground/40 hover:bg-foreground/5"
+          >
+            Saber más
+          </button>
+        </div>
+
+        <!-- ─── Estadísticas rápidas ───────────────────────────────────── -->
+        <div class="mt-12 flex flex-wrap justify-center gap-8 lg:justify-start">
+          <div class="text-center">
+            <p class="text-3xl font-bold text-primary">+50</p>
+            <p class="text-sm text-muted-foreground">Ligas cubiertas</p>
+          </div>
+          <div class="text-center">
+            <p class="text-3xl font-bold text-primary">85%</p>
+            <p class="text-sm text-muted-foreground">Precisión IA</p>
+          </div>
+          <div class="text-center">
+            <p class="text-3xl font-bold text-primary">24/7</p>
+            <p class="text-sm text-muted-foreground">Datos en vivo</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── Columna derecha: Decoración geométrica (solo desktop) ──────── -->
+      <!--
+        "hidden lg:flex" → invisible en móvil, visible en pantallas >= 1024px
+        Reemplaza el ícono <Sparkles> de lucide-react por un SVG inline
+        con el mismo efecto de anillos pulsantes animados.
+      -->
+      <div class="hidden lg:flex lg:items-center lg:justify-center">
+        <div class="relative">
+
+          <!-- Destellos de luz difusa (blur orbs) -->
+          <div class="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-primary/10 blur-3xl"></div>
+          <div class="absolute -bottom-10 -right-10 h-48 w-48 rounded-full bg-emerald-500/10 blur-3xl"></div>
+
+          <!-- Anillos pulsantes animados -->
+          <div class="relative h-80 w-80">
+            <div class="absolute inset-0 animate-pulse rounded-full border border-primary/20"></div>
+            <div class="absolute inset-4 animate-pulse rounded-full border border-primary/15" style="animation-delay: 0.5s"></div>
+            <div class="absolute inset-8 animate-pulse rounded-full border border-primary/10" style="animation-delay: 1s"></div>
+
+            <!-- Ícono central con backdrop blur -->
+            <div class="absolute inset-0 flex items-center justify-center">
+              <div class="rounded-full bg-primary/20 p-8 backdrop-blur-sm ring-1 ring-primary/30">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-primary"
+                  viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─── Indicador de scroll (abajo al centro) ───────────────────────────── -->
+  <div class="absolute bottom-8 left-1/2 -translate-x-1/2">
+    <button
+      (click)="scrollToMatches()"
+      class="flex animate-bounce flex-col items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
+      aria-label="Ver partidos"
+    >
+      <span class="text-sm">Explorar partidos</span>
+      <!-- Ícono ChevronDown -->
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6"
+        viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="6 9 12 15 18 9"/>
+      </svg>
+    </button>
+  </div>
+
+</section>
