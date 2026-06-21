@@ -40,18 +40,19 @@ import { map, catchError, tap } from 'rxjs/operators';
 
 import { environment } from '../../environments/environment';
 import { Match } from '../models/match.model';
+import { MOCK_MATCHES } from '../data/mock-matches';
 
 // ─── Interfaces: tipan la respuesta cruda de la API ───────────────────────────
 
 interface ApiFixtureStatus {
   long: string;
-  short: string;        // 'NS' | '1H' | 'HT' | '2H' | 'FT' | 'AET' | ...
+  short: string; // 'NS' | '1H' | 'HT' | '2H' | 'FT' | 'AET' | ...
   elapsed: number | null; // Minuto del partido, null si no empezó
 }
 
 interface ApiFixture {
   id: number;
-  date: string;   // ISO 8601: "2025-06-15T20:00:00+00:00"
+  date: string; // ISO 8601: "2025-06-15T20:00:00+00:00"
   status: ApiFixtureStatus;
 }
 
@@ -151,7 +152,6 @@ const LIVE_STATUSES = ['1H', 'HT', '2H', 'ET', 'BT', 'P', 'INT', 'LIVE'];
 
 @Injectable({ providedIn: 'root' })
 export class FootballService {
-
   private http = inject(HttpClient);
 
   /**
@@ -178,6 +178,10 @@ export class FootballService {
    *          ya filtrados y ordenados (finalizados + próximos).
    */
   getMatches(): Observable<Match[]> {
+    if (!environment.production) {
+      console.log('[FootballService] Usando mocks en development');
+      return of(MOCK_MATCHES);
+    }
 
     // ── VERIFICACIÓN DE CACHÉ ────────────────────────────────────────────────
     if (this.cache.has(this.CACHE_KEY)) {
@@ -201,24 +205,24 @@ export class FootballService {
      * DAYS_FORWARD = 5 → 5 días hacia adelante = 5 peticiones de fecha futuras.
      * Total del método: 3 (pasado) + 5 (futuro) + 4 (ligas) = 12 peticiones por sesión.
      */
-    const DAYS_BACK = 2; // días hacia atrás (para partidos finalizados recientes)
-    const DAYS_FORWARD = 5; // días hacia adelante (para partidos PRÓXIMOS del Mundial)
+    const DAYS_BACK = 1; // días hacia atrás (para partidos finalizados recientes)
+    const DAYS_FORWARD = 1; // días hacia adelante (para partidos PRÓXIMOS del Mundial)
 
     // Fechas pasadas: hoy, ayer, hace 2 días
-    const pastDateObservables$ = this.getRecentDates(DAYS_BACK).map(
-      (date) => this.fetchFixturesByDate(date)
+    const pastDateObservables$ = this.getRecentDates(DAYS_BACK).map((date) =>
+      this.fetchFixturesByDate(date),
     );
 
     // Fechas futuras: mañana, pasado mañana ... hasta DAYS_FORWARD días
-    const futureDateObservables$ = this.getFutureDates(DAYS_FORWARD).map(
-      (date) => this.fetchFixturesByDate(date)
+    const futureDateObservables$ = this.getFutureDates(DAYS_FORWARD).map((date) =>
+      this.fetchFixturesByDate(date),
     );
 
     const dateObservables$ = [...pastDateObservables$, ...futureDateObservables$];
 
     // ── OBSERVABLES HISTÓRICOS POR LIGA (temporadas pasadas) ─────────────────
     const leagueObservables$ = LEAGUE_CONFIG.map((league) =>
-      this.fetchLeagueMatches(league.id, league.season, league.label)
+      this.fetchLeagueMatches(league.id, league.season, league.label),
     );
 
     // ── FORKJOIN: combina TODAS las peticiones en paralelo ───────────────────
@@ -235,7 +239,6 @@ export class FootballService {
      */
     const totalDateObs = dateObservables$.length;
     return forkJoin([...dateObservables$, ...leagueObservables$]).pipe(
-
       map((results: Match[][]) => {
         const merged = results.flat();
 
@@ -246,7 +249,7 @@ export class FootballService {
          * Map<string, Match> garantiza IDs únicos: si la clave ya existe,
          * el segundo .set() sobreescribe en lugar de duplicar.
          */
-        const unique = Array.from(new Map(merged.map(m => [m.id, m])).values());
+        const unique = Array.from(new Map(merged.map((m) => [m.id, m])).values());
 
         const dateCount = totalDateObs;
         const dateTotal = results.slice(0, dateCount).reduce((s, r) => s + r.length, 0);
@@ -257,7 +260,7 @@ export class FootballService {
 
         console.log(
           `[FootballService] 📦 Total: ${unique.length} únicos ` +
-          `(Fechas: ${dateTotal}, ${leagueSummary})`
+            `(Fechas: ${dateTotal}, ${leagueSummary})`,
         );
         return unique;
       }),
@@ -270,11 +273,9 @@ export class FootballService {
       catchError((error) => {
         console.error('[FootballService] ❌ Error en forkJoin:', error);
         return of([]);
-      })
+      }),
     );
   }
-
-
 
   // ──────────────────────────────────────────────────────────────────────────
   // MÉTODOS PRIVADOS: consultas por fecha (Mundial + ligas activas)
@@ -337,24 +338,21 @@ export class FootballService {
     return this.http.get<ApiResponse>(url).pipe(
       map((apiResponse: ApiResponse) => {
         const apiMatches = this.extractApiMatches(apiResponse);
-        const topMatches = apiMatches.filter(
-          (m) => TOP_LEAGUE_IDS.includes(m.league.id)
-        );
-        const leagues = [...new Set(topMatches.map(m => m.league.name))].join(', ');
+        const topMatches = apiMatches.filter((m) => TOP_LEAGUE_IDS.includes(m.league.id));
+        const leagues = [...new Set(topMatches.map((m) => m.league.name))].join(', ');
         console.log(
           `[FootballService] 🏆 ${dateStr}: ${topMatches.length} partidos top ` +
-          `(de ${apiMatches.length} totales)` +
-          (leagues ? ` — ${leagues}` : '')
+            `(de ${apiMatches.length} totales)` +
+            (leagues ? ` — ${leagues}` : ''),
         );
         return topMatches.map((m) => this.mapApiMatchToMatch(m));
       }),
       catchError((error) => {
         console.error(`[FootballService] ❌ Error en fecha ${dateStr}:`, error.status);
         return of([]);
-      })
+      }),
     );
   }
-
 
   /**
    * fetchLeagueMatches() — Hace UNA petición HTTP para una liga específica
@@ -365,16 +363,11 @@ export class FootballService {
    * @param label     Nombre legible (solo para logs)
    * @returns Observable<Match[]> con máximo FINISHED_PER_LEAGUE + UPCOMING_PER_LEAGUE partidos
    */
-  private fetchLeagueMatches(
-    leagueId: number,
-    season: number,
-    label: string
-  ): Observable<Match[]> {
+  private fetchLeagueMatches(leagueId: number, season: number, label: string): Observable<Match[]> {
     const url = `${environment.apiFootballUrl}/fixtures?league=${leagueId}&season=${season}`;
     console.log(`[FootballService] 🔗 GET ${label}: ${url}`);
 
     return this.http.get<ApiResponse>(url).pipe(
-
       map((apiResponse: ApiResponse) => {
         const rawMatches = this.extractApiMatches(apiResponse);
 
@@ -388,15 +381,14 @@ export class FootballService {
          * Usamos .filter() de JavaScript — recorre el array y devuelve
          * solo los elementos para los que la función retorna true.
          */
-        const finished = rawMatches.filter(m =>
-          FINISHED_STATUSES.includes(m.fixture.status.short)
+        const finished = rawMatches.filter((m) =>
+          FINISHED_STATUSES.includes(m.fixture.status.short),
         );
-        const live = rawMatches.filter(m =>
-          LIVE_STATUSES.includes(m.fixture.status.short)
-        );
-        const upcoming = rawMatches.filter(m =>
-          !FINISHED_STATUSES.includes(m.fixture.status.short) &&
-          !LIVE_STATUSES.includes(m.fixture.status.short)
+        const live = rawMatches.filter((m) => LIVE_STATUSES.includes(m.fixture.status.short));
+        const upcoming = rawMatches.filter(
+          (m) =>
+            !FINISHED_STATUSES.includes(m.fixture.status.short) &&
+            !LIVE_STATUSES.includes(m.fixture.status.short),
         );
 
         // ── ORDENAR Y RECORTAR ──────────────────────────────────────────────
@@ -412,9 +404,7 @@ export class FootballService {
          * .slice(0, N) toma los primeros N elementos del array ya ordenado.
          */
         const recentFinished = finished
-          .sort((a, b) =>
-            new Date(b.fixture.date).getTime() - new Date(a.fixture.date).getTime()
-          )
+          .sort((a, b) => new Date(b.fixture.date).getTime() - new Date(a.fixture.date).getTime())
           .slice(0, FINISHED_PER_LEAGUE);
 
         /**
@@ -422,9 +412,7 @@ export class FootballService {
          * y tomamos los próximos UPCOMING_PER_LEAGUE partidos.
          */
         const nextUpcoming = upcoming
-          .sort((a, b) =>
-            new Date(a.fixture.date).getTime() - new Date(b.fixture.date).getTime()
-          )
+          .sort((a, b) => new Date(a.fixture.date).getTime() - new Date(b.fixture.date).getTime())
           .slice(0, UPCOMING_PER_LEAGUE);
 
         // Combinamos: en vivo primero (prioridad), luego próximos, luego finalizados
@@ -432,12 +420,12 @@ export class FootballService {
 
         console.log(
           `[FootballService] ✂️  ${label}: ` +
-          `${live.length} live, ${nextUpcoming.length} próximos, ` +
-          `${recentFinished.length} finalizados → ${selected.length} total`
+            `${live.length} live, ${nextUpcoming.length} próximos, ` +
+            `${recentFinished.length} finalizados → ${selected.length} total`,
         );
 
         // Transformamos cada ApiMatch al formato Match limpio
-        return selected.map(m => this.mapApiMatchToMatch(m));
+        return selected.map((m) => this.mapApiMatchToMatch(m));
       }),
 
       /**
@@ -449,7 +437,7 @@ export class FootballService {
       catchError((error) => {
         console.error(`[FootballService] ❌ Error en ${label}:`, error.status, error.message);
         return of([]);
-      })
+      }),
     );
   }
 
@@ -490,10 +478,12 @@ export class FootballService {
     // Formatear fecha y hora en español
     const dateObj = new Date(fixture.date);
     const dateStr = dateObj.toLocaleDateString('es-AR', {
-      day: 'numeric', month: 'short',
+      day: 'numeric',
+      month: 'short',
     });
     const timeStr = dateObj.toLocaleTimeString('es-AR', {
-      hour: '2-digit', minute: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
     });
 
     // Abreviatura de 3 letras en mayúscula: "Manchester City" → "MAN"
