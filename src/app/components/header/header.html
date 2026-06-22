@@ -83,95 +83,12 @@
         </svg>
       </button>
 
-      <!-- ─── Dropdown del Usuario ──────────────────────────────────────── -->
-      <!--
-        "relative" en el div padre para que el dropdown se posicione
-        respecto a él (position: absolute usa el ancestro más cercano con
-        position != static, que es nuestro div con class="relative")
-      -->
-      <div class="relative">
-
-        <!-- Botón del avatar — al hacer click llama a toggleUserMenu() -->
-        <button
-          (click)="toggleUserMenu($event)"
-          class="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-secondary text-sm font-semibold text-secondary-foreground transition-colors hover:bg-secondary/80"
-          aria-label="Menú de usuario"
-          aria-haspopup="true"
-          [attr.aria-expanded]="isUserMenuOpen"
-        >
-          MP
-        </button>
-
-        <!--
-          @if es la NUEVA SINTAXIS de control de flujo de Angular 17+
-          Reemplaza a *ngIf. Muestra este bloque SOLO cuando isUserMenuOpen es true.
-
-          Equivalente en React: {isUserMenuOpen && <div>...</div>}
-        -->
-        @if (isUserMenuOpen) {
-          <div
-            class="absolute right-0 top-full mt-2 w-56 rounded-lg border border-border bg-background shadow-xl"
-            role="menu"
-          >
-            <!-- Información del usuario -->
-            <div class="flex items-center gap-3 p-3">
-              <div class="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-secondary-foreground">
-                MP
-              </div>
-              <div>
-                <p class="text-sm font-medium text-foreground">Usuario Pro</p>
-                <p class="text-xs text-muted-foreground">usuario&#64;matchpredict.ai</p>
-              </div>
-            </div>
-
-            <!-- Separador -->
-            <div class="my-1 h-px bg-border"></div>
-
-            <!-- Opciones del menú -->
-            <div class="p-1">
-
-              <!-- Perfil -->
-              <button class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground transition-colors hover:bg-secondary" role="menuitem">
-                <!-- Ícono User -->
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-muted-foreground"
-                  viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                  <circle cx="12" cy="7" r="4"/>
-                </svg>
-                Perfil
-              </button>
-
-              <!-- Configuración -->
-              <button class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground transition-colors hover:bg-secondary" role="menuitem">
-                <!-- Ícono Settings (engranaje) -->
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-muted-foreground"
-                  viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="12" r="3"/>
-                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                </svg>
-                Configuración
-              </button>
-
-              <!-- Separador -->
-              <div class="my-1 h-px bg-border"></div>
-
-              <!-- Cerrar sesión (color destructivo = rojo) -->
-              <button class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-destructive transition-colors hover:bg-destructive/10" role="menuitem">
-                <!-- Ícono LogOut -->
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4"
-                  viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                  <polyline points="16 17 21 12 16 7"/>
-                  <line x1="21" y1="12" x2="9" y2="12"/>
-                </svg>
-                Cerrar sesión
-              </button>
-            </div>
-          </div>
-        }
+      <!-- Avatar del usuario (sin menú por el momento) -->
+      <div
+        class="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-secondary text-sm font-semibold text-secondary-foreground"
+        aria-label="Usuario"
+      >
+        MP
       </div>
     </div>
   </div>

@@ -1,0 +1,190 @@
+{
+  "get": "fixtures",
+  "parameters": {
+    "date": "2026-06-22"
+  },
+  "errors": [],
+  "results": 4,
+  "paging": {
+    "current": 1,
+    "total": 1
+  },
+  "response": [
+    {
+      "fixture": {
+        "id": 100001,
+        "timezone": "UTC",
+        "date": "2026-06-22T14:00:00+00:00",
+        "status": {
+          "long": "Match Finished",
+          "short": "FT",
+          "elapsed": 90
+        }
+      },
+      "league": {
+        "id": 1,
+        "name": "World Cup",
+        "country": "World",
+        "logo": "https://media.api-sports.io/football/leagues/1.png",
+        "flag": null,
+        "round": "Group Stage - 2"
+      },
+      "teams": {
+        "home": {
+          "id": 26,
+          "name": "Argentina",
+          "logo": "https://media.api-sports.io/football/teams/26.png",
+          "winner": true
+        },
+        "away": {
+          "id": 20,
+          "name": "Austria",
+          "logo": "https://media.api-sports.io/football/teams/20.png",
+          "winner": false
+        }
+      },
+      "goals": {
+        "home": 3,
+        "away": 0
+      },
+      "score": {
+        "halftime": { "home": 2, "away": 0 },
+        "fulltime": { "home": 3, "away": 0 },
+        "extratime": { "home": null, "away": null },
+        "penalty": { "home": null, "away": null }
+      }
+    },
+    {
+      "fixture": {
+        "id": 100002,
+        "timezone": "UTC",
+        "date": "2026-06-22T18:00:00+00:00",
+        "status": {
+          "long": "Match Finished",
+          "short": "FT",
+          "elapsed": 90
+        }
+      },
+      "league": {
+        "id": 1,
+        "name": "World Cup",
+        "country": "World",
+        "logo": "https://media.api-sports.io/football/leagues/1.png",
+        "flag": null,
+        "round": "Group Stage - 2"
+      },
+      "teams": {
+        "home": {
+          "id": 2,
+          "name": "France",
+          "logo": "https://media.api-sports.io/football/teams/2.png",
+          "winner": true
+        },
+        "away": {
+          "id": 22,
+          "name": "Iraq",
+          "logo": "https://media.api-sports.io/football/teams/22.png",
+          "winner": false
+        }
+      },
+      "goals": {
+        "home": 4,
+        "away": 1
+      },
+      "score": {
+        "halftime": { "home": 2, "away": 1 },
+        "fulltime": { "home": 4, "away": 1 },
+        "extratime": { "home": null, "away": null },
+        "penalty": { "home": null, "away": null }
+      }
+    },
+    {
+      "fixture": {
+        "id": 100003,
+        "timezone": "UTC",
+        "date": "2026-06-25T21:00:00+00:00",
+        "status": {
+          "long": "Not Started",
+          "short": "NS",
+          "elapsed": null
+        }
+      },
+      "league": {
+        "id": 1,
+        "name": "World Cup",
+        "country": "World",
+        "logo": "https://media.api-sports.io/football/leagues/1.png",
+        "flag": null,
+        "round": "Group Stage - 3"
+      },
+      "teams": {
+        "home": {
+          "id": 6,
+          "name": "Brazil",
+          "logo": "https://media.api-sports.io/football/teams/6.png",
+          "winner": null
+        },
+        "away": {
+          "id": 10,
+          "name": "Spain",
+          "logo": "https://media.api-sports.io/football/teams/10.png",
+          "winner": null
+        }
+      },
+      "goals": {
+        "home": null,
+        "away": null
+      },
+      "score": {
+        "halftime": { "home": null, "away": null },
+        "fulltime": { "home": null, "away": null },
+        "extratime": { "home": null, "away": null },
+        "penalty": { "home": null, "away": null }
+      }
+    },
+    {
+      "fixture": {
+        "id": 100004,
+        "timezone": "UTC",
+        "date": "2026-06-25T18:00:00+00:00",
+        "status": {
+          "long": "Not Started",
+          "short": "NS",
+          "elapsed": null
+        }
+      },
+      "league": {
+        "id": 1,
+        "name": "World Cup",
+        "country": "World",
+        "logo": "https://media.api-sports.io/football/leagues/1.png",
+        "flag": null,
+        "round": "Group Stage - 3"
+      },
+      "teams": {
+        "home": {
+          "id": 13,
+          "name": "Germany",
+          "logo": "https://media.api-sports.io/football/teams/13.png",
+          "winner": null
+        },
+        "away": {
+          "id": 26,
+          "name": "Argentina",
+          "logo": "https://media.api-sports.io/football/teams/26.png",
+          "winner": null
+        }
+      },
+      "goals": {
+        "home": null,
+        "away": null
+      },
+      "score": {
+        "halftime": { "home": null, "away": null },
+        "fulltime": { "home": null, "away": null },
+        "extratime": { "home": null, "away": null },
+        "penalty": { "home": null, "away": null }
+      }
+    }
+  ]
+}
